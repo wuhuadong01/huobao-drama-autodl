@@ -6,7 +6,7 @@ import { db, getInsertId, schema } from '../db/index.js'
 import { eq } from 'drizzle-orm'
 import { getActiveConfig, getConfigById } from './ai.js'
 import { now } from '../utils/response.js'
-import { downloadFile, fetchImageAsCompressedDataUrl, generateImageThumb, readImageAsCompressedDataUrl, saveBase64Image } from '../utils/storage.js'
+import { downloadFile, fetchImageAsCompressedDataUrl, generateImageThumb, parseDataUrl, readImageAsCompressedDataUrl, saveBase64Image } from '../utils/storage.js'
 import { extractVideoPoster } from '../utils/video-poster.js'
 import { getImageAdapter, getVideoAdapter } from './adapters/registry'
 import type { AIConfig } from './adapters/types'
@@ -58,6 +58,8 @@ interface GenerateVideoParams {
   promptExtend?: boolean
   watermark?: boolean
   configId?: number
+  /** ComfyUI 工作流自定义入参（JSON 字符串），由 adapter 透传到 body */
+  extraParams?: string
 }
 
 export async function generateImage(params: GenerateImageParams): Promise<number> {
@@ -128,6 +130,7 @@ export async function generateVideo(params: GenerateVideoParams): Promise<number
     seed: params.seed,
     promptExtend: params.promptExtend,
     watermark: params.watermark,
+    extraParams: params.extraParams,
   })
 
   logTaskStart('VideoTask', 'enqueue', {
@@ -221,7 +224,11 @@ async function processTask(id: number, config: AIConfig) {
       const resolvedImageUrl = await normalizeVideoReferenceUrl(params.imageUrl)
       const resolvedFirstFrameUrl = await normalizeVideoReferenceUrl(params.firstFrameUrl)
       const resolvedLastFrameUrl = await normalizeVideoReferenceUrl(params.lastFrameUrl)
-      const resolvedReferenceImageUrls = await normalizeVideoReferenceUrls(params.referenceImageUrls)
+      // comfyUI 等需要公网 URL 的 provider：把 base64 / 本地路径转成 PUBLIC_BASE_URL 公网地址
+      // 其他 provider（火山/海螺/阿里云）：保持原 base64 内联策略
+      const resolvedReferenceImageUrls = config.provider === 'comfyui'
+        ? await resolvePublicImageUrls(params.referenceImageUrls)
+        : await normalizeVideoReferenceUrls(params.referenceImageUrls)
       // 参考视频/音频文件较大，不适合 dataURL 内联，需解析为公网可访问 URL
       const resolvedReferenceVideoUrls = resolvePublicMediaUrls(params.referenceVideoUrls, 'video')
       const resolvedReferenceAudioUrls = resolvePublicMediaUrls(params.referenceAudioUrls, 'audio')
@@ -246,6 +253,7 @@ async function processTask(id: number, config: AIConfig) {
         seed: params.seed,
         promptExtend: params.promptExtend,
         watermark: params.watermark,
+        extraParams: params.extraParams,
       }))
     }
 
@@ -578,6 +586,47 @@ function resolvePublicMediaUrls(refs: string[] | null | undefined, kind: 'video'
   if (!Array.isArray(refs) || !refs.length) return []
   const items = Array.from(new Set(refs.map((item) => String(item || '').trim()).filter(Boolean)))
   return items.map((item) => resolvePublicMediaUrl(item, kind)).filter((item): item is string => !!item)
+}
+
+/**
+ * 把图片数据转成 comfyUI 等"公网 URL only"的 provider 可访问的 URL。
+ * - http(s) 直通
+ * - data:image/... base64 → 先落盘到 static/images/xxx → 用 PUBLIC_BASE_URL 拼成公网地址
+ * - static/... 或 /static/... 本地路径 → 用 PUBLIC_BASE_URL 拼成公网地址
+ * - 未配置 PUBLIC_BASE_URL 时抛错（中文错误信息，提示用户去 .env 配置）
+ */
+async function resolvePublicImageUrl(value: string | null | undefined): Promise<string | null> {
+  const raw = String(value || '').trim()
+  if (!raw) return null
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+
+  let relativePath: string
+  if (raw.startsWith('data:image/')) {
+    const parsed = parseDataUrl(raw)
+    if (!parsed) return null
+    relativePath = await saveBase64Image(parsed.data, parsed.mimeType, 'images')
+  } else if (raw.startsWith('static/') || raw.startsWith('/static/')) {
+    relativePath = raw.startsWith('/') ? raw.slice(1) : raw
+  } else {
+    // 未知格式原样返回（adapter 自己再处理或报错）
+    return raw
+  }
+
+  const base = (process.env.PUBLIC_BASE_URL || '').trim().replace(/\/+$/, '')
+  if (!base) {
+    throw new Error(
+      `参考图片为本地路径 ${relativePath}，但后端未配置 PUBLIC_BASE_URL，comfyUI 工作流无法访问内网地址。` +
+      `请在 backend/.env 配置 PUBLIC_BASE_URL（如 https://your-domain.com）后重试，或改用公网 URL。`,
+    )
+  }
+  return `${base}/${relativePath}`
+}
+
+async function resolvePublicImageUrls(refs: string[] | null | undefined): Promise<string[]> {
+  if (!Array.isArray(refs) || !refs.length) return []
+  const items = Array.from(new Set(refs.map((item) => String(item || '').trim()).filter(Boolean)))
+  const out = await Promise.all(items.map((item) => resolvePublicImageUrl(item)))
+  return out.filter((item): item is string => !!item)
 }
 
 function normalizeStoredVideoResolution(resolution: string | null | undefined): string | undefined {

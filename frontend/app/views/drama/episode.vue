@@ -717,6 +717,47 @@
                   {{ t('common.download') }}
                 </a>
               </div>
+              <details v-if="videoConfigProviderIsComfyUI" class="video-extra-params">
+                <summary>高级参数（JSON，可选）</summary>
+                <textarea
+                  v-model="videoExtraParams"
+                  class="textarea video-extra-params-input"
+                  rows="5"
+                  placeholder='AutoDL 工作流字段名严格匹配文档。示例：&#10;{ "text": "提示词", "video_length": 5, "ratio": "16:9" }&#10;留空则只发默认 prompt 字段'
+                />
+                <div class="video-extra-params-hint">
+                  仅对 comfyUI 工作流生效。字段名必须严格匹配 AutoDL 工作流文档，否则会报"未定义参数"。
+                </div>
+
+                <div class="video-extra-audio-row">
+                  <label class="video-extra-audio-label">参考音频（部分 comfyUI 工作流必填 ref_audio_0）：</label>
+                  <div class="video-extra-audio-input-row">
+                    <input
+                      v-model="videoExtraAudioUrl"
+                      type="text"
+                      class="input video-extra-audio-url"
+                      placeholder="https://...mp3 或上传本地文件"
+                    />
+                    <label class="btn btn-sm btn-ghost">
+                      <Loader2 v-if="videoExtraAudioUploading" :size="11" class="animate-spin" />
+                      <span v-else>上传</span>
+                      <input
+                        type="file"
+                        accept="audio/*"
+                        style="display:none"
+                        :disabled="videoExtraAudioUploading"
+                        @change="onUploadAudio($event)"
+                      />
+                    </label>
+                    <button
+                      v-if="videoExtraAudioUrl"
+                      type="button"
+                      class="btn btn-sm btn-ghost"
+                      @click="videoExtraAudioUrl = ''"
+                    >清空</button>
+                  </div>
+                </div>
+              </details>
               <div class="video-player-stage">
                 <video
                   v-if="previewVideoUrl || hasVid(selectedSb)"
@@ -1578,6 +1619,23 @@ function persistModel(modelRef, key) {
 persistModel(chatModel, MODEL_STORE_KEYS.chat)
 persistModel(imageModel, MODEL_STORE_KEYS.image)
 persistModel(videoModel, MODEL_STORE_KEYS.video)
+
+// comfyUI 工作流额外参数（JSON 字符串），用户可填任意工作流自定义入参
+// 字段名（如 ref_image_0 / ref_audio_0）必须严格匹配 AutoDL 工作流文档
+const videoExtraParams = ref('')
+
+// comfyUI 工作流必填参考音频 URL（部分工作流如 minimax_h3_z0903 必填 ref_audio_0）
+const videoExtraAudioUrl = ref('')
+const videoExtraAudioUploading = ref(false)
+
+/** 当前选中视频模型是否属于 comfyUI provider（决定是否显示高级参数面板） */
+const videoConfigProviderIsComfyUI = computed(() => {
+  const id = ownerConfigId(videoModelOptions.value, videoModel.value)
+  if (!id) return false
+  const cfg = videoConfigs.value.find(c => c.id === id)
+  return cfg?.provider === 'comfyui'
+})
+
 // 左侧菜单栏收起/展开：收起为窄图标栏给内容区让位，持久化到 localStorage
 const SIDEBAR_COLLAPSED_KEY = 'huobao:sidebar-collapsed'
 const sidebarCollapsed = ref((() => {
@@ -3251,6 +3309,21 @@ function uploadAssetImage(kind, id) {
   })
 }
 
+async function onUploadAudio(event) {
+  const file = event.target?.files?.[0]
+  if (!file) return
+  videoExtraAudioUploading.value = true
+  try {
+    const result = await uploadAPI.audio(file)
+    videoExtraAudioUrl.value = result.url || ('/' + (result.path || ''))
+  } catch (e) {
+    toastError(e, { fallback: '音频上传失败' })
+  } finally {
+    videoExtraAudioUploading.value = false
+    event.target.value = ''
+  }
+}
+
 async function genVid(sb, opts = {}) {
   const referenceImages = getShotReferenceImages(sb)
   // 参考素材完全来自分镜绑定的角色/场景/道具图片
@@ -3264,6 +3337,8 @@ async function genVid(sb, opts = {}) {
     model: bareModelName(videoModel.value) || undefined,
     config_id: ownerConfigId(videoModelOptions.value, videoModel.value),
     reference_image_urls: referenceImages,
+    reference_audio_urls: videoExtraAudioUrl.value ? [videoExtraAudioUrl.value] : [],
+    extraParams: videoExtraParams.value || undefined,
   }
   if (!params.prompt && !referenceImages.length) {
     toast.error(t('episode.vid.needRefOrPrompt'))
@@ -4801,6 +4876,52 @@ onMounted(() => setTimeout(() => autoTour('episode', EPISODE_TOUR, t), 900))
 .video-player-empty-copy { display: flex; flex-direction: column; align-items: center; }
 .video-player-empty-title { color: var(--text-1); font-size: 12.5px; font-weight: 700; }
 .video-player-empty-desc { margin-top: 2px; font-size: 11px; line-height: 1.5; }
+.video-extra-params {
+  margin: 8px 12px;
+  font-size: 12px;
+}
+.video-extra-params summary {
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px 0;
+  user-select: none;
+}
+.video-extra-params summary:hover { color: var(--fg); }
+.video-extra-params-input {
+  width: 100%;
+  margin-top: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  background: var(--bg-soft);
+  resize: vertical;
+}
+.video-extra-params-hint {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.video-extra-audio-row {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+.video-extra-audio-label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.video-extra-audio-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.video-extra-audio-url {
+  flex: 1;
+  font-size: 11px;
+  padding: 4px 8px;
+}
 .video-player-empty-action { flex-shrink: 0; margin-top: 4px; }
 .video-task-list {
   min-height: 0;

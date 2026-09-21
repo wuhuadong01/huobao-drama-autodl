@@ -107,6 +107,18 @@ function buildProbe(serviceType: string, provider: string, baseUrl: string, mode
     }
   }
 
+  if (p === 'comfyui') {
+    // AutoDL ComfyUI 工作流无独立"健康检查"端点；用 POST 空 body 探 {baseUrl}/{workflow_id}
+    // 期望 AutoDL 因缺参数返 400/422（端点可达+鉴权 OK），而不是 404（端点不存在）
+    const wfId = m || 'probe'
+    return {
+      method: 'POST',
+      url: joinProviderUrl(baseUrl, '', `/${wfId}`),
+      headers: bearerHeaders(apiKey, true),
+      body: {},
+    }
+  }
+
   return {
     method: 'GET',
     url: joinProviderUrl(baseUrl, '', m ? `/${m}` : '/'),
