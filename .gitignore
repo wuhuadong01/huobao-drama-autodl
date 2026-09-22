@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.pnpm-store/
 
 # Build output
 dist/
@@ -46,6 +47,7 @@ temp/
 .superpowers/
 /CLAUDE.md
 /AGENTS.md
+rebuild-deploy.sh
 
 # Agent workspace (skills/prompts 为策划模板保持跟踪，其余产出忽略)
 backend/workspace/*

@@ -3542,6 +3542,21 @@ async function confirmDeleteStoryboard() {
 async function genVid(sb, opts = {}) {
   const referenceImages = getShotReferenceImages(sb)
   // 参考素材完全来自分镜绑定的角色/场景/道具图片
+  // 把 reference_image_urls 数组按索引转成 ref_image_N，塞进 extraParams 让 ComfyUI 适配器直接使用
+  // 后端 comfyui-video.ts:148 有 `if (!(key in body))` 判断，extraParams 内的 ref_image_N 优先级高于数组保底
+  const refImageParams = {}
+  referenceImages.forEach((url, idx) => {
+    if (url) refImageParams[`ref_image_${idx}`] = url
+  })
+  // 合并 extraParams：前端构造的 ref_image_N 为保底，用户在 UI 填的 extraParams 优先（可覆盖）
+  let extraParamsStr = videoExtraParams.value || ''
+  if (Object.keys(refImageParams).length) {
+    let userExtra = {}
+    if (extraParamsStr.trim()) {
+      try { userExtra = JSON.parse(extraParamsStr) } catch { userExtra = { _raw: extraParamsStr } }
+    }
+    extraParamsStr = JSON.stringify({ ...refImageParams, ...userExtra })
+  }
   const params = {
     storyboard_id: sb.id,
     drama_id: dramaId,
@@ -3553,7 +3568,7 @@ async function genVid(sb, opts = {}) {
     config_id: ownerConfigId(videoModelOptions.value, videoModel.value),
     reference_image_urls: referenceImages,
     reference_audio_urls: videoExtraAudioUrl.value ? [videoExtraAudioUrl.value] : [],
-    extraParams: videoExtraParams.value || undefined,
+    extraParams: extraParamsStr || undefined,
   }
   if (!params.prompt && !referenceImages.length) {
     toast.error(t('episode.vid.needRefOrPrompt'))
