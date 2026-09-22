@@ -163,12 +163,34 @@ export class ComfyUIVideoAdapter implements VideoProviderAdapter {
       if (!(key in body) && refVideos[i]) body[key] = refVideos[i]
     }
 
-    // 5) 保底：如果用户没填任何文本字段，把 record.prompt 作为 prompt 注入
+    // 5) 保底：把 record.duration / aspectRatio / size / seed 等"已知字段"也映射到 body
+    //    —— AutoDL 工作流经常用 duration 作为视频秒数（如 minimax_h3_z0903 默认 5 秒），
+    //    如果 UI 上填了 12 但 adapter 不发，AutoDL 会默认 5 秒导致用户困惑。
+    //
+    //    字段命名多样：先发"最常见命名"作为保底；用户如果填了 extraParams 里的同名字段（如 {"duration": 8}），
+    //    Object.assign 已经覆盖了 body[key]，下面的 `!(key in body)` 判断会跳过。
+    if (record.duration != null && record.duration !== 0) {
+      if (!('duration' in body)) body.duration = Number(record.duration)
+    }
+    if (record.aspectRatio) {
+      if (!('aspect_ratio' in body)) body.aspect_ratio = record.aspectRatio
+    }
+    if (record.size) {
+      if (!('size' in body)) body.size = record.size
+      if (!('resolution' in body)) body.resolution = record.size  // AutoDL 部分工作流用 resolution
+    }
+    if (record.seed != null && record.seed !== 0) {
+      if (!('seed' in body)) body.seed = Number(record.seed)
+    }
+    if (record.firstFrameUrl && !('first_frame' in body)) body.first_frame = record.firstFrameUrl
+    if (record.lastFrameUrl && !('last_frame' in body)) body.last_frame = record.lastFrameUrl
+
+    // 6) 保底：如果用户没填任何文本字段，把 record.prompt 作为 prompt 注入
     if (record.prompt != null && String(record.prompt).trim() && !this.hasAnyTextField(body)) {
       body.prompt = record.prompt
     }
 
-    // 6) 不在 adapter 硬编码必填字段：不同 AutoDL 工作流必填项不一样，
+    // 7) 不在 adapter 硬编码必填字段：不同 AutoDL 工作流必填项不一样，
     //    强制校验会把"文档说必填但实际可选"的场景卡死。让 AutoDL 自己报缺什么字段的错误，
     //    错误信息（如"缺少必填参数：ref_audio_0"）会透传给前端。
 
