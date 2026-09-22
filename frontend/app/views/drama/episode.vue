@@ -604,7 +604,7 @@
                   <button
                     class="btn btn-icon btn-sm video-task-move-btn"
                     :title="t('episode.vid.moveUp')"
-                    :disabled="task.index === 0 || videoListFilter"
+                    :disabled="task.index === 0 || !!videoListFilter"
                     @click.stop="moveStoryboard(task.index, -1)"
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
@@ -612,7 +612,7 @@
                   <button
                     class="btn btn-icon btn-sm video-task-move-btn"
                     :title="t('episode.vid.moveDown')"
-                    :disabled="task.index === videoTaskRows.length - 1 || videoListFilter"
+                    :disabled="task.index === sbs.length - 1 || !!videoListFilter"
                     @click.stop="moveStoryboard(task.index, 1)"
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -3475,26 +3475,16 @@ const addingStoryboard = ref(false)
 
 // 移动分镜顺序
 async function moveStoryboard(index, dir) {
-  const rows = videoTaskRows.value
   const targetIndex = index + dir
-  if (targetIndex < 0 || targetIndex >= rows.length) return
-  // 交换位置
-  const newRows = [...rows]
-  ;[newRows[index], newRows[targetIndex]] = [newRows[targetIndex], newRows[index]]
-  // 立即更新本地列表顺序，避免等待网络
-  const oldSbs = [...sbs.value]
-  const sbA = oldSbs.find(s => s.id === newRows[index].storyboard.id)
-  const sbB = oldSbs.find(s => s.id === newRows[targetIndex].storyboard.id)
-  if (sbA && sbB) {
-    const idxA = oldSbs.indexOf(sbA)
-    const idxB = oldSbs.indexOf(sbB)
-    ;[oldSbs[idxA], oldSbs[idxB]] = [oldSbs[idxB], oldSbs[idxA]]
-    // 更新本地 storyboardNumber
-    oldSbs.forEach((s, i) => { s.storyboardNumber = i + 1; s.storyboard_number = i + 1 })
-    sbs.value = oldSbs
-  }
+  if (targetIndex < 0 || targetIndex >= sbs.value.length) return
+  // 直接在 sbs.value 上交换位置
+  const arr = [...sbs.value]
+  ;[arr[index], arr[targetIndex]] = [arr[targetIndex], arr[index]]
+  // 更新本地 storyboardNumber
+  arr.forEach((s, i) => { s.storyboardNumber = i + 1; s.storyboard_number = i + 1 })
+  sbs.value = arr
   try {
-    const ids = newRows.map(r => r.storyboard.id)
+    const ids = arr.map(s => s.id)
     await storyboardAPI.reorder(ids)
   } catch (e) {
     toastError(e, { fallback: 'episode.vid.reorderFailed' })
