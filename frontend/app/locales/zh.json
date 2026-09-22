@@ -639,7 +639,11 @@
     "delete": {
       "title": "删除{type}",
       "message": "确定删除{type}「{name}」吗？将从本剧所有集中移除。",
-      "deleted": "已删除{type}"
+      "deleted": "已删除{type}",
+      "storyboardTitle": "删除分镜",
+      "storyboardMessage": "确定删除分镜 #{n} 吗？该分镜的所有生成任务和参考素材关联都将被删除，此操作不可撤销。",
+      "storyboardDone": "分镜已删除",
+      "storyboardFail": "删除分镜失败"
     },
     "sb": {
       "title": "分镜拆分",
@@ -689,7 +693,8 @@
       "batchDone": "视频提示词批量生成完成",
       "batchDoneFailed": "视频提示词批量生成完成，{n} 个失败",
       "batchFailed": "视频提示词批量生成失败",
-      "promptGenerated": "分镜 #{n} 视频提示词已生成"
+      "promptGenerated": "分镜 #{n} 视频提示词已生成",
+      "titleShort": "分镜 #{n}"
     },
     "ref": {
       "title": "参考素材",

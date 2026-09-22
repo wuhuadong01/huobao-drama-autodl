@@ -639,7 +639,11 @@
     "delete": {
       "title": "Delete {type}",
       "message": "Delete {type} “{name}”? It will be removed from all episodes of this drama.",
-      "deleted": "{type} deleted"
+      "deleted": "{type} deleted",
+      "storyboardTitle": "删除分镜",
+      "storyboardMessage": "确定删除分镜 #{n} 吗？该分镜的所有生成任务和参考素材关联都将被删除，此操作不可撤销。",
+      "storyboardDone": "分镜已删除",
+      "storyboardFail": "删除分镜失败"
     },
     "sb": {
       "title": "Storyboard Breakdown",
@@ -689,7 +693,8 @@
       "batchDone": "Batch video prompt generation complete",
       "batchDoneFailed": "Batch video prompt generation complete, {n} failed",
       "batchFailed": "Batch video prompt generation failed",
-      "promptGenerated": "Video prompt for shot #{n} generated"
+      "promptGenerated": "Video prompt for shot #{n} generated",
+      "titleShort": "分镜 #{n}"
     },
     "ref": {
       "title": "Reference Assets",

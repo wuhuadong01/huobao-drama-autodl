@@ -639,7 +639,11 @@
     "delete": {
       "title": "{type} 삭제",
       "message": "{type} 「{name}」을(를) 삭제하시겠습니까? 이 작품의 모든 화에서 제거됩니다.",
-      "deleted": "{type}이(가) 삭제되었습니다"
+      "deleted": "{type}이(가) 삭제되었습니다",
+      "storyboardTitle": "删除分镜",
+      "storyboardMessage": "确定删除分镜 #{n} 吗？该分镜的所有生成任务和参考素材关联都将被删除，此操作不可撤销。",
+      "storyboardDone": "分镜已删除",
+      "storyboardFail": "删除分镜失败"
     },
     "sb": {
       "title": "스토리보드 분해",
@@ -689,7 +693,8 @@
       "batchDone": "영상 프롬프트 일괄 생성이 완료되었습니다",
       "batchDoneFailed": "영상 프롬프트 일괄 생성이 완료되었습니다({n}개 실패)",
       "batchFailed": "영상 프롬프트 일괄 생성에 실패했습니다",
-      "promptGenerated": "스토리보드 #{n}의 영상 프롬프트가 생성되었습니다"
+      "promptGenerated": "스토리보드 #{n}의 영상 프롬프트가 생성되었습니다",
+      "titleShort": "分镜 #{n}"
     },
     "ref": {
       "title": "참조 소재",

@@ -639,7 +639,11 @@
     "delete": {
       "title": "{type}を削除",
       "message": "{type}「{name}」を削除しますか？この作品のすべての話から取り除かれます。",
-      "deleted": "{type}を削除しました"
+      "deleted": "{type}を削除しました",
+      "storyboardTitle": "删除分镜",
+      "storyboardMessage": "确定删除分镜 #{n} 吗？该分镜的所有生成任务和参考素材关联都将被删除，此操作不可撤销。",
+      "storyboardDone": "分镜已删除",
+      "storyboardFail": "删除分镜失败"
     },
     "sb": {
       "title": "分镜分解",
@@ -689,7 +693,8 @@
       "batchDone": "動画プロンプトの一括生成が完了しました",
       "batchDoneFailed": "動画プロンプトの一括生成が完了しました（{n} 件失敗）",
       "batchFailed": "動画プロンプトの一括生成に失敗しました",
-      "promptGenerated": "分镜 #{n} の動画プロンプトを生成しました"
+      "promptGenerated": "分镜 #{n} の動画プロンプトを生成しました",
+      "titleShort": "分镜 #{n}"
     },
     "ref": {
       "title": "参照素材",

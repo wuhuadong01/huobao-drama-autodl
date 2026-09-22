@@ -862,6 +862,13 @@
                   >
                     {{ videoTaskActionLabel(selectedSb) }}
                   </button>
+                  <button
+                    class="btn btn-ghost btn-sm video-inspector-delete"
+                    :disabled="videoTaskState(selectedSb) === 'pending'"
+                    @click="askDeleteStoryboard(selectedSb)"
+                  >
+                    {{ t('common.delete') }}{{ t('episode.sb.titleShort', { n: selectedSb.storyboardNumber || selectedSb.storyboard_number || selectedSb.id }) }}
+                  </button>
                 </div>
               </aside>
               </div>
@@ -1462,6 +1469,13 @@
         :loading="assetDelete.loading"
         @confirm="confirmDeleteAsset"
         @cancel="assetDelete.open = false"
+      />
+      <ConfirmDialog
+        :open="!!storyboardDeleteId"
+        :title="t('episode.delete.storyboardTitle')"
+        :message="t('episode.delete.storyboardMessage', { n: storyboardDeleteNumber })"
+        @confirm="confirmDeleteStoryboard"
+        @cancel="storyboardDeleteId = 0"
       />
     </main>
     </div>
@@ -3321,6 +3335,29 @@ async function onUploadAudio(event) {
   } finally {
     videoExtraAudioUploading.value = false
     event.target.value = ''
+  }
+}
+
+// 故事板（分镜）删除：先弹确认，确认后调 API + 刷新列表
+const storyboardDeleteId = ref(0)
+const storyboardDeleteNumber = ref(0)
+function askDeleteStoryboard(sb) {
+  if (!sb || !sb.id) return
+  storyboardDeleteId.value = sb.id
+  storyboardDeleteNumber.value = sb.storyboardNumber || sb.storyboard_number || sb.id
+}
+async function confirmDeleteStoryboard() {
+  const id = storyboardDeleteId.value
+  if (!id) return
+  try {
+    await storyboardAPI.del(id)
+    storyboardDeleteId.value = 0
+    // 清空选中 + 刷新
+    selectedSb.value = null
+    await refresh()
+    toast.success(t('episode.delete.storyboardDone'))
+  } catch (e) {
+    toastError(e, { fallback: 'episode.delete.storyboardFail' })
   }
 }
 
@@ -5268,6 +5305,16 @@ button.video-task-metric.on { box-shadow: 0 0 0 2px var(--accent); }
 .video-inspector-params dt { color: var(--text-3); }
 .video-inspector-params dd { margin: 0; color: var(--text-1); text-align: right; }
 .video-inspector-action { width: 100%; min-height: 32px; height: 32px; padding: 0 12px; font-size: 12.5px; }
+.video-inspector-delete {
+  width: 100%;
+  margin-top: 6px;
+  color: var(--danger, #e15a5a);
+  border-color: var(--danger, #e15a5a);
+  font-size: 11.5px;
+}
+.video-inspector-delete:hover {
+  background: var(--danger-bg, rgba(225, 90, 90, 0.08));
+}
 /* 绑定参考图：当前分镜已绑定素材的图片平铺（生成时作为参考图提交） */
 .video-bound-refs { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
 .video-bound-ref {
