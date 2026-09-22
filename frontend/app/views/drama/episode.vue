@@ -602,6 +602,22 @@
                     </div>
                   </div>
                   <button
+                    class="btn btn-icon btn-sm video-task-move-btn"
+                    :title="t('episode.vid.moveUp')"
+                    :disabled="task.index === 0 || videoListFilter"
+                    @click.stop="moveStoryboard(task.index, -1)"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                  </button>
+                  <button
+                    class="btn btn-icon btn-sm video-task-move-btn"
+                    :title="t('episode.vid.moveDown')"
+                    :disabled="task.index === videoTaskRows.length - 1 || videoListFilter"
+                    @click.stop="moveStoryboard(task.index, 1)"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <button
                     class="btn btn-icon btn-sm video-task-action"
                     :title="videoTaskActionLabel(task.storyboard)"
                     :disabled="videoTaskState(task.storyboard) === 'pending'"
@@ -3456,6 +3472,36 @@ async function insertRefToPrompt(label) {
 
 // 新增分镜
 const addingStoryboard = ref(false)
+
+// 移动分镜顺序
+async function moveStoryboard(index, dir) {
+  const rows = videoTaskRows.value
+  const targetIndex = index + dir
+  if (targetIndex < 0 || targetIndex >= rows.length) return
+  // 交换位置
+  const newRows = [...rows]
+  ;[newRows[index], newRows[targetIndex]] = [newRows[targetIndex], newRows[index]]
+  // 立即更新本地列表顺序，避免等待网络
+  const oldSbs = [...sbs.value]
+  const sbA = oldSbs.find(s => s.id === newRows[index].storyboard.id)
+  const sbB = oldSbs.find(s => s.id === newRows[targetIndex].storyboard.id)
+  if (sbA && sbB) {
+    const idxA = oldSbs.indexOf(sbA)
+    const idxB = oldSbs.indexOf(sbB)
+    ;[oldSbs[idxA], oldSbs[idxB]] = [oldSbs[idxB], oldSbs[idxA]]
+    // 更新本地 storyboardNumber
+    oldSbs.forEach((s, i) => { s.storyboardNumber = i + 1; s.storyboard_number = i + 1 })
+    sbs.value = oldSbs
+  }
+  try {
+    const ids = newRows.map(r => r.storyboard.id)
+    await storyboardAPI.reorder(ids)
+  } catch (e) {
+    toastError(e, { fallback: 'episode.vid.reorderFailed' })
+    await refresh()
+  }
+}
+
 async function addNewStoryboard() {
   if (!epId.value || addingStoryboard.value) return
   addingStoryboard.value = true
@@ -5409,6 +5455,18 @@ button.video-task-metric.on { box-shadow: 0 0 0 2px var(--accent); }
 .video-task-state.is-done { color: var(--success); }
 .video-task-state.is-pending { color: var(--accent-text); }
 .video-task-state.is-failed { color: var(--warning); }
+.video-task-move-btn {
+  align-self: center;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+.video-task-move-btn:hover:not(:disabled) {
+  opacity: 1;
+}
+.video-task-move-btn:disabled {
+  opacity: 0.15;
+  cursor: default;
+}
 .video-task-action {
   justify-self: end;
   align-self: center;

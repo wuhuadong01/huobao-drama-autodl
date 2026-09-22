@@ -114,6 +114,22 @@ app.post('/', async (c) => {
   })
 })
 
+// PUT /storyboards/reorder — 批量更新分镜顺序（必须在 /:id 之前注册）
+app.put('/reorder', async (c) => {
+  const body = await c.req.json()
+  const ids: number[] = body.ids || []
+  if (!ids.length) return badRequest(c, 'ids 不能为空')
+  logTaskStart('StoryboardAPI', 'reorder', { count: ids.length })
+  const ts = now()
+  for (let i = 0; i < ids.length; i++) {
+    await db.update(schema.storyboards)
+      .set({ storyboardNumber: i + 1, updatedAt: ts })
+      .where(eq(schema.storyboards.id, ids[i]))
+  }
+  logTaskSuccess('StoryboardAPI', 'reorder', { count: ids.length })
+  return success(c)
+})
+
 // PUT /storyboards/:id
 app.put('/:id', async (c) => {
   const id = Number(c.req.param('id'))
