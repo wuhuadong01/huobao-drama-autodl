@@ -172,18 +172,12 @@ export class ComfyUIVideoAdapter implements VideoProviderAdapter {
     if (record.duration != null && record.duration !== 0) {
       if (!('duration' in body)) body.duration = Number(record.duration)
     }
-    // aspect_ratio / size / resolution 三者是同一类（描述输出尺寸），
-    // 不同工作流字段名不同：volcengine 用 aspect_ratio='16:9'，AutoDL minimax_h3_zm_u24 用
-    // resolution='768p竖'（枚举值）。如果用户已经在 extraParams 里指定了任何一个，
-    // 就跳过 record 字段的保底注入——避免产生"未定义参数"。
-    const hasSizeField = 'aspect_ratio' in body || 'size' in body || 'resolution' in body || 'ratio' in body
-    if (record.aspectRatio && !hasSizeField) {
-      body.aspect_ratio = record.aspectRatio
-    }
-    if (record.size && !hasSizeField) {
-      body.size = record.size
-      body.resolution = record.size
-    }
+    // AutoDL 工作流尺寸字段完全靠用户在 extraParams 里指定（不同工作流命名差异大）：
+    //   minimax_h3_zm_u24 用 resolution='768p竖'（枚举值）
+    //   volcengine 等用 aspect_ratio='16:9'
+    // 不依赖 record.aspectRatio / record.size —— 这些字段是给火山/海螺/阿里云用的，
+    // 不该跨 provider 通用（容易触发"未定义参数"）。
+    // 如果用户没指定，让 AutoDL 用工作流自己默认值（一般都有合理默认）。
     if (record.seed != null && record.seed !== 0) {
       if (!('seed' in body)) body.seed = Number(record.seed)
     }
