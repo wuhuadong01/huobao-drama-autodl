@@ -701,7 +701,7 @@
                         <span v-else>+ 上传</span>
                         <input
                           type="file"
-                          accept="audio/*"
+                          accept=".mp3,.wav,.m4a,.aac,.ogg,.flac,.webm,audio/*"
                           style="display:none"
                           :disabled="videoExtraAudioUploading"
                           @change="onUploadAudio($event)"
@@ -732,7 +732,7 @@
                         </div>
                       </div>
                     </div>
-                    <div v-else class="storyboard-ref-empty">暂无音频，点击「+ 上传」添加</div>
+                    <div v-else class="storyboard-ref-empty">暂无音频，点击「+ 上传」添加（支持 mp3 / wav / m4a / aac / ogg / flac / webm）</div>
                   </section>
                 </div>
 
@@ -3457,7 +3457,7 @@ async function onUploadAudio(event) {
     }
     setStoryboardAudios(sb, [...getStoryboardAudios(sb), audio])
   } catch (e) {
-    toastError(e, { fallback: '音频上传失败' })
+    toastError(e, { fallback: '音频上传失败，仅支持 mp3 / wav / m4a / aac / ogg / flac / webm 格式' })
   } finally {
     videoExtraAudioUploading.value = false
     event.target.value = ''
