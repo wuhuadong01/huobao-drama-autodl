@@ -128,6 +128,7 @@ export const storyboards = sqliteTable('storyboards', {
   firstFrameImage: text('first_frame_image'),
   lastFrameImage: text('last_frame_image'),
   referenceImages: text('reference_images'),
+  referenceAudios: text('reference_audios'),
   videoUrl: text('video_url'),
   subtitleUrl: text('subtitle_url'),
   composedVideoUrl: text('composed_video_url'),

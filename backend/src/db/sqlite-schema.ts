@@ -106,6 +106,7 @@ export const sqliteSchemaStatements = [
     first_frame_image TEXT,
     last_frame_image TEXT,
     reference_images TEXT,
+    reference_audios TEXT,
     video_url TEXT,
     subtitle_url TEXT,
     composed_video_url TEXT,
@@ -393,5 +394,12 @@ export function initSqliteSchema(sqlite: Database.Database) {
   for (const [value, prompt] of Object.entries(REMOVED_SEED_PROMPTS)) {
     const res = removeSeed.run(value, prompt)
     if (res.changes > 0) console.log(`🗑️ 风格预设「${value}」已下架`)
+  }
+
+  // 存量库升级：storyboards 新增 reference_audios 列（JSON 数组，存分镜参考音频）
+  try {
+    sqlite.exec(`ALTER TABLE storyboards ADD COLUMN reference_audios TEXT`)
+  } catch {
+    // 列已存在则忽略
   }
 }

@@ -695,18 +695,10 @@
                   <section class="video-inspector-section">
                     <div class="video-inspector-prompt-head">
                       <span class="video-inspector-label">参考音频</span>
-                      <span class="dim">（comfyUI 工作流映射为 ref_audio_0，选填）</span>
-                    </div>
-                    <div class="video-extra-audio-input-row">
-                      <input
-                        v-model="videoExtraAudioUrl"
-                        type="text"
-                        class="input video-extra-audio-url"
-                        placeholder="音频 URL，或点击右侧上传本地文件"
-                      />
-                      <label class="btn btn-sm btn-ghost">
+                      <span class="dim">（绑定后映射为 ref_audio_0..N，选填；可 @引用）</span>
+                      <label class="btn btn-sm btn-ghost" style="margin-left:auto">
                         <Loader2 v-if="videoExtraAudioUploading" :size="11" class="animate-spin" />
-                        <span v-else>上传</span>
+                        <span v-else>+ 上传</span>
                         <input
                           type="file"
                           accept="audio/*"
@@ -715,13 +707,32 @@
                           @change="onUploadAudio($event)"
                         />
                       </label>
-                      <button
-                        v-if="videoExtraAudioUrl"
-                        type="button"
-                        class="btn btn-sm btn-ghost"
-                        @click="videoExtraAudioUrl = ''"
-                      >清空</button>
                     </div>
+                    <div v-if="getStoryboardAudios(selectedSb).length" class="storyboard-audio-list">
+                      <div
+                        v-for="audio in getStoryboardAudios(selectedSb)"
+                        :key="audio.id"
+                        :class="['storyboard-ref-item', { bound: audio.bound }]"
+                        :title="audio.bound ? '点击移出参考' : '点击添加为参考'"
+                        @click="toggleStoryboardAudio(selectedSb, audio.id)"
+                      >
+                        <div class="storyboard-audio-thumb">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                        </div>
+                        <div class="storyboard-ref-main">
+                          <span class="storyboard-ref-name">{{ audio.name }}</span>
+                          <span class="storyboard-ref-meta">音频</span>
+                          <span class="storyboard-ref-comfy-param" v-if="audio.bound">{{ getAudioComfyParamName(selectedSb, audio.id) }}</span>
+                          <span :class="['storyboard-ref-state', audio.bound ? 'is-ready' : '']">
+                            {{ audio.bound ? '可参考' : '未绑定' }}
+                          </span>
+                          <button type="button" class="storyboard-ref-goto" title="删除" @click.stop="removeStoryboardAudio(selectedSb, audio.id)">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="storyboard-ref-empty">暂无音频，点击「+ 上传」添加</div>
                   </section>
                 </div>
 
@@ -889,19 +900,29 @@
                     {{ t('episode.inspector.effective', { model: effectiveVideoModelLabel || t('episode.vid.defaultModel'), res: episodeResolutionShort, dur: effectiveVideoDuration }) }}
                   </div>
 
-                  <!-- 提示词助手：把 @场景/@角色名 一键插入到当前激活的 videoPrompt 输入框 -->
-                  <section class="video-inspector-section video-prompt-helper" v-if="videoConfigProviderIsComfyUI && getShotReferenceImages(selectedSb).length">
+                  <!-- 提示词助手：把 @场景/@角色名/@音频名 一键插入到当前激活的 videoPrompt 输入框 -->
+                  <section class="video-inspector-section video-prompt-helper" v-if="videoConfigProviderIsComfyUI && (getShotReferenceImages(selectedSb).length || getShotReferenceAudios(selectedSb).length)">
                     <div class="video-section-title">{{ t('episode.inspector.promptHelperTitle') }}</div>
                     <div class="video-prompt-helper-chips">
                       <button
                         v-for="(ref, idx) in getShotReferenceImages(selectedSb)"
-                        :key="idx"
+                        :key="'img-'+idx"
                         type="button"
                         class="chip-btn"
                         :title="t('episode.inspector.promptHelperInsertTitle', { label: refLabelForIndex(selectedSb, idx) })"
                         @click="insertRefToPrompt(refLabelForIndex(selectedSb, idx))"
                       >
                         @{{ refLabelForIndex(selectedSb, idx) }}
+                      </button>
+                      <button
+                        v-for="audio in getStoryboardAudios(selectedSb).filter(a => a.bound)"
+                        :key="audio.id"
+                        type="button"
+                        class="chip-btn chip-btn-audio"
+                        :title="`插入 @${audio.name}（ref_audio）`"
+                        @click="insertRefToPrompt(audio.name)"
+                      >
+                        @{{ audio.name }}
                       </button>
                     </div>
                     <div class="video-prompt-helper-hint">
@@ -1692,8 +1713,7 @@ persistModel(videoModel, MODEL_STORE_KEYS.video)
 // 字段名（如 ref_image_0 / ref_audio_0）必须严格匹配 AutoDL 工作流文档
 const videoExtraParams = ref('')
 
-// comfyUI 工作流必填参考音频 URL（部分工作流如 minimax_h3_z0903 必填 ref_audio_0）
-const videoExtraAudioUrl = ref('')
+// 分镜参考音频：上传后存到 storyboard.reference_audios（JSON 数组），可绑定/解绑
 const videoExtraAudioUploading = ref(false)
 
 /** 当前选中视频模型是否属于 comfyUI provider（决定是否显示高级参数面板） */
@@ -3295,6 +3315,12 @@ const mentionOptions = computed(() => {
       group: t('common.prop'),
       image: thumbOf(assetImageSrc(p)),
     })),
+    ...getStoryboardAudios(sb).filter(a => a.bound).map(a => ({
+      label: a.name,
+      value: a.name,
+      kind: 'audio',
+      group: '音频',
+    })),
   ]
 })
 
@@ -3320,16 +3346,25 @@ function getShotReferenceIndexMap(sb) {
   return nameToIndex
 }
 
-// 将视频提示词里的 @名字 替换为 名字ref_image_N（N 为参考图序号，0 起，对应 ComfyUI 工作流入参 ref_image_0/1/2...）
+// 将视频提示词里的 @名字 替换为 名字ref_image_N 或 名字ref_audio_N
+// （N 为参考素材序号，0 起，对应 ComfyUI 工作流入参 ref_image_0/ref_audio_0...）
 function resolveVideoPromptRefs(sb) {
   const prompt = sb.video_prompt || sb.videoPrompt || ''
-  const map = getShotReferenceIndexMap(sb)
-  const names = Object.keys(map).sort((a, b) => b.length - a.length)
+  const resolveMap = {} // name -> 'ref_image_N' / 'ref_audio_N'
+  // 音频先入，图片后入覆盖（同名时图片优先，与角色/场景/道具引用一致）
+  for (const [name, idx] of Object.entries(getShotReferenceAudioIndexMap(sb))) {
+    resolveMap[name] = `ref_audio_${idx}`
+  }
+  const imgMap = getShotReferenceIndexMap(sb)
+  for (const [name, idx] of Object.entries(imgMap)) {
+    resolveMap[name] = `ref_image_${idx - 1}`
+  }
+  const names = Object.keys(resolveMap).sort((a, b) => b.length - a.length)
   if (!names.length) return prompt
   return prompt.replace(/@([^\s@]+)/g, (m, raw) => {
     for (const name of names) {
       if (raw.startsWith(name)) {
-        return `${name}ref_image_${map[name] - 1}${raw.slice(name.length)}`
+        return `${name}${resolveMap[name]}${raw.slice(name.length)}`
       }
     }
     return m
@@ -3388,19 +3423,75 @@ function uploadAssetImage(kind, id) {
   })
 }
 
+// ─── 分镜参考音频 ───────────────────────────────────────────────
+// 存储在 storyboard.reference_audios（JSON 字符串），结构：[{ id, name, url, bound }]
+function getStoryboardAudios(sb) {
+  if (!sb) return []
+  const raw = sb.reference_audios ?? sb.referenceAudios
+  if (!raw) return []
+  try {
+    const arr = typeof raw === 'string' ? JSON.parse(raw) : raw
+    return Array.isArray(arr) ? arr.filter(a => a && a.url) : []
+  } catch {
+    return []
+  }
+}
+
+function setStoryboardAudios(sb, audios) {
+  updateField(sb, 'reference_audios', JSON.stringify(audios))
+}
+
 async function onUploadAudio(event) {
+  const sb = selectedSb.value
   const file = event.target?.files?.[0]
-  if (!file) return
+  if (!file || !sb) return
   videoExtraAudioUploading.value = true
   try {
     const result = await uploadAPI.audio(file)
-    videoExtraAudioUrl.value = result.url || ('/' + (result.path || ''))
+    const url = result.url || ('/' + (result.path || ''))
+    const audio = {
+      id: `audio-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: file.name.replace(/\.[^.]+$/, '') || '音频',
+      url,
+      bound: true, // 上传后默认绑定为参考
+    }
+    setStoryboardAudios(sb, [...getStoryboardAudios(sb), audio])
   } catch (e) {
     toastError(e, { fallback: '音频上传失败' })
   } finally {
     videoExtraAudioUploading.value = false
     event.target.value = ''
   }
+}
+
+function toggleStoryboardAudio(sb, audioId) {
+  const audios = getStoryboardAudios(sb)
+  setStoryboardAudios(sb, audios.map(a => a.id === audioId ? { ...a, bound: !a.bound } : a))
+}
+
+function removeStoryboardAudio(sb, audioId) {
+  setStoryboardAudios(sb, getStoryboardAudios(sb).filter(a => a.id !== audioId))
+}
+
+// 已绑定的参考音频 URL 列表（按绑定顺序，对应 ref_audio_0..N）
+function getShotReferenceAudios(sb) {
+  return getStoryboardAudios(sb).filter(a => a.bound).map(a => a.url)
+}
+
+// 已绑定音频的 ComfyUI 参数名（ref_audio_N）
+function getAudioComfyParamName(sb, audioId) {
+  const bound = getStoryboardAudios(sb).filter(a => a.bound)
+  const index = bound.findIndex(a => a.id === audioId)
+  return index >= 0 ? `ref_audio_${index}` : ''
+}
+
+// 已绑定音频的名字 → 0-based 索引映射（供 @名字 替换）
+function getShotReferenceAudioIndexMap(sb) {
+  const map = {}
+  getStoryboardAudios(sb).filter(a => a.bound).forEach((a, i) => {
+    if (a.name && !(a.name in map)) map[a.name] = i
+  })
+  return map
 }
 
 // 参考图顺序标签：ref_image_0 = 场景，ref_image_1..N = 角色（按绑定顺序），后面 = 道具
@@ -3537,7 +3628,7 @@ async function genVid(sb, opts = {}) {
     model: bareModelName(videoModel.value) || undefined,
     config_id: ownerConfigId(videoModelOptions.value, videoModel.value),
     reference_image_urls: referenceImages,
-    reference_audio_urls: videoExtraAudioUrl.value ? [videoExtraAudioUrl.value] : [],
+    reference_audio_urls: getShotReferenceAudios(sb),
     extraParams: videoExtraParams.value || undefined,
   }
   if (!params.prompt && !referenceImages.length) {
@@ -4376,6 +4467,22 @@ onMounted(() => setTimeout(() => autoTour('episode', EPISODE_TOUR, t), 900))
   line-height: 1.5;
   border: 1px dashed var(--surface-outline);
   border-radius: var(--radius);
+}
+.storyboard-audio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.storyboard-audio-thumb {
+  width: 30px;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--surface-outline);
+  background: var(--bg-2);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .detail-panel { flex: 1; display: flex; flex-direction: column; overflow-y: auto; min-width: 0; }
 .detail-head { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -5595,6 +5702,10 @@ button.video-task-metric.on { box-shadow: 0 0 0 2px var(--accent); }
 }
 .chip-btn:hover {
   background: var(--accent-bg, rgba(99, 102, 241, 0.15));
+  border-color: var(--accent);
+}
+.chip-btn-audio {
+  color: var(--accent);
   border-color: var(--accent);
 }
 .video-prompt-helper-hint {

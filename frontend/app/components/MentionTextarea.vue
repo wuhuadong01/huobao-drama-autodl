@@ -46,13 +46,13 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { User, MapPin, Package } from 'lucide-vue-next'
+import { User, MapPin, Package, Music } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-// 无图资产在下拉中显示分组图标兜底（场景=定位、道具=包裹、角色=人物）——按 kind code 判断，不依赖显示文案
-const groupIcon = (kind) => (kind === 'scene' ? MapPin : kind === 'prop' ? Package : User)
+// 无图资产在下拉中显示分组图标兜底（场景=定位、道具=包裹、音频=音符、角色=人物）——按 kind code 判断，不依赖显示文案
+const groupIcon = (kind) => (kind === 'scene' ? MapPin : kind === 'prop' ? Package : kind === 'audio' ? Music : User)
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
