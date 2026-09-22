@@ -855,6 +855,45 @@
                   <div class="video-inspector-effective">
                     {{ t('episode.inspector.effective', { model: effectiveVideoModelLabel || t('episode.vid.defaultModel'), res: episodeResolutionShort, dur: effectiveVideoDuration }) }}
                   </div>
+
+                  <!-- 参考图顺序预览：让用户清楚知道 ref_image_0/1/2 对应哪个场景/角色/道具 -->
+                  <section class="video-inspector-section video-refs-preview" v-if="videoConfigProviderIsComfyUI">
+                    <div class="video-section-title">{{ t('episode.inspector.refsTitle') }}</div>
+                    <div v-if="!getShotReferenceImages(selectedSb).length" class="video-refs-empty">
+                      {{ t('episode.inspector.refsEmpty') }}
+                    </div>
+                    <div v-else class="video-refs-list">
+                      <div v-for="(ref, idx) in getShotReferenceImages(selectedSb)" :key="idx" class="video-ref-row">
+                        <code class="video-ref-key">ref_image_{{ idx }}</code>
+                        <span class="video-ref-arrow">→</span>
+                        <span class="video-ref-label">{{ refLabelForIndex(selectedSb, idx) }}</span>
+                      </div>
+                    </div>
+                    <div class="video-refs-hint">
+                      {{ t('episode.inspector.refsHint') }}
+                    </div>
+                  </section>
+
+                  <!-- 提示词助手：把 @场景/@角色名 一键插入到当前激活的 videoPrompt 输入框 -->
+                  <section class="video-inspector-section video-prompt-helper" v-if="videoConfigProviderIsComfyUI && getShotReferenceImages(selectedSb).length">
+                    <div class="video-section-title">{{ t('episode.inspector.promptHelperTitle') }}</div>
+                    <div class="video-prompt-helper-chips">
+                      <button
+                        v-for="(ref, idx) in getShotReferenceImages(selectedSb)"
+                        :key="idx"
+                        type="button"
+                        class="chip-btn"
+                        :title="t('episode.inspector.promptHelperInsertTitle', { label: refLabelForIndex(selectedSb, idx) })"
+                        @click="insertRefToPrompt(refLabelForIndex(selectedSb, idx))"
+                      >
+                        @{{ refLabelForIndex(selectedSb, idx) }}
+                      </button>
+                    </div>
+                    <div class="video-prompt-helper-hint">
+                      {{ t('episode.inspector.promptHelperHint') }}
+                    </div>
+                  </section>
+
                   <button
                     class="btn btn-primary video-inspector-action"
                     :disabled="videoTaskState(selectedSb) === 'pending'"
@@ -3338,6 +3377,58 @@ async function onUploadAudio(event) {
   }
 }
 
+// 参考图顺序标签：ref_image_0 = 场景，ref_image_1..N = 角色（按绑定顺序），后面 = 道具
+function refLabelForIndex(sb, idx) {
+  const refs = []
+  const scene = getStoryboardScene(sb)
+  const hasScene = scene?.image_url || scene?.imageUrl
+  if (hasScene) refs.push('场景')
+  for (const c of getStoryboardCharacters(sb)) {
+    if (c?.image_url || c?.imageUrl) refs.push(c.name || t('episode.asset.unnamedChar'))
+  }
+  for (const p of getStoryboardProps(sb)) {
+    if (p?.image_url || p?.imageUrl) refs.push(p.name || t('episode.asset.unnamedProp'))
+  }
+  return refs[idx] || `图${idx + 1}`
+}
+
+// 提示词助手：把 @label 插入到当前激活的 videoPrompt 输入框（或 video_prompt 字段）
+async function insertRefToPrompt(label) {
+  const token = `@${label} `
+  // 优先用当前激活的 textarea，否则尝试找第一个 videoPrompt 相关的 textarea
+  const active = document.activeElement
+  let target = null
+  if (active && active.tagName === 'TEXTAREA') {
+    // 跳过 extraParams（高级参数 JSON）这种结构化输入框
+    const cls = String(active.className || '')
+    const ph = String(active.placeholder || '')
+    if (!cls.includes('extra-params-input') && !ph.includes('JSON')) {
+      target = active
+    }
+  }
+  if (!target) {
+    target = document.querySelector('.video-inspector-prompt')
+  }
+  if (target) {
+    const start = target.selectionStart || target.value.length
+    const end = target.selectionEnd || target.value.length
+    const v = target.value
+    target.value = v.slice(0, start) + token + v.slice(end)
+    target.selectionStart = target.selectionEnd = start + token.length
+    target.dispatchEvent(new Event('input', { bubbles: true }))
+    target.focus()
+    toast.success(t('episode.inspector.promptHelperInserted', { token }))
+  } else {
+    // fallback：复制到剪贴板
+    try {
+      await navigator.clipboard.writeText(token)
+      toast.success(t('episode.inspector.promptHelperCopied', { token }))
+    } catch {
+      toast.error(token)
+    }
+  }
+}
+
 // 故事板（分镜）删除：先弹确认，确认后调 API + 刷新列表
 const storyboardDeleteId = ref(0)
 const storyboardDeleteNumber = ref(0)
@@ -5314,6 +5405,80 @@ button.video-task-metric.on { box-shadow: 0 0 0 2px var(--accent); }
 }
 .video-inspector-delete:hover {
   background: var(--danger-bg, rgba(225, 90, 90, 0.08));
+}
+.video-section-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.video-refs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.video-ref-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--bg-soft);
+  border-radius: 4px;
+  font-size: 11.5px;
+}
+.video-ref-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--accent);
+  background: var(--accent-bg, rgba(99, 102, 241, 0.1));
+  padding: 1px 5px;
+  border-radius: 3px;
+  min-width: 78px;
+}
+.video-ref-arrow { color: var(--muted); }
+.video-ref-label { flex: 1; font-weight: 500; }
+.video-refs-empty {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 6px;
+  text-align: center;
+  background: var(--bg-soft);
+  border-radius: 4px;
+}
+.video-refs-hint {
+  font-size: 10.5px;
+  color: var(--muted);
+  line-height: 1.4;
+  margin-top: 4px;
+}
+.video-prompt-helper-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.chip-btn {
+  font-size: 11px;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-soft);
+  color: var(--fg);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.chip-btn:hover {
+  background: var(--accent-bg, rgba(99, 102, 241, 0.15));
+  border-color: var(--accent);
+}
+.video-prompt-helper-hint {
+  font-size: 10.5px;
+  color: var(--muted);
+  line-height: 1.4;
 }
 /* 绑定参考图：当前分镜已绑定素材的图片平铺（生成时作为参考图提交） */
 .video-bound-refs { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }

@@ -786,7 +786,15 @@
       "durationHint": "Edits save to the storyboard instantly and apply to list and batch generation",
       "effective": "{model} · {res} · {dur}s",
       "boundRefs": "Bound References",
-      "noBoundRefs": "No bound assets (bind in the center \"References\" panel)"
+      "noBoundRefs": "No bound assets (bind in the center \"References\" panel)",
+      "refsTitle": "📋 Reference image order",
+      "refsEmpty": "(No scene/character/prop images bound)",
+      "refsHint": "AutoDL ComfyUI workflows identify ref_image_N by position. 1st = scene, then characters/props by binding order.",
+      "promptHelperTitle": "💡 Prompt helper",
+      "promptHelperHint": "Click a chip to insert the @name at the cursor position in the prompt.",
+      "promptHelperInsertTitle": "Insert @{label} into prompt",
+      "promptHelperInserted": "Inserted {token}",
+      "promptHelperCopied": "No prompt textarea found, copied {token} to clipboard"
     },
     "tasks": {
       "title": "Generation Tasks",

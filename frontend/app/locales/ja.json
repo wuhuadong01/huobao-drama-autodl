@@ -786,7 +786,15 @@
       "durationHint": "変更すると分镜に即時保存され、リストとバッチ生成にも反映されます",
       "effective": "{model} · {res} · {dur}秒",
       "boundRefs": "绑定参照画像",
-      "noBoundRefs": "绑定された素材なし（中央の「参照素材」で绑定）"
+      "noBoundRefs": "绑定された素材なし（中央の「参照素材」で绑定）",
+      "refsTitle": "📋 参照画像の順序",
+      "refsEmpty": "（シーン/キャラクター/小道具の画像が未バインド）",
+      "refsHint": "AutoDL ComfyUI ワークフローは ref_image_N を位置で識別します。1番目=シーン、その後=キャラクター/小道具。",
+      "promptHelperTitle": "💡 プロンプトヘルパー",
+      "promptHelperHint": "チップをクリックして @name をカーソル位置に挿入します。",
+      "promptHelperInsertTitle": "@{label} をプロンプトに挿入",
+      "promptHelperInserted": "{token} を挿入しました",
+      "promptHelperCopied": "プロンプト入力欄が見つからず、{token} をクリップボードにコピーしました"
     },
     "tasks": {
       "title": "生成タスク一覧",

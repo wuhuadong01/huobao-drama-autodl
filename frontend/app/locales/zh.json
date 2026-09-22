@@ -786,7 +786,15 @@
       "durationHint": "修改即保存到分镜，列表与批量生成同步生效",
       "effective": "{model} · {res} · {dur}s",
       "boundRefs": "绑定参考图",
-      "noBoundRefs": "暂无绑定素材（在中间「参考素材」区点击绑定）"
+      "noBoundRefs": "暂无绑定素材（在中间「参考素材」区点击绑定）",
+      "refsTitle": "📋 参考图顺序",
+      "refsEmpty": "（未绑定任何场景/角色/道具图片）",
+      "refsHint": "AutoDL ComfyUI 工作流按位置识别 ref_image_N。第 1 张是场景图，后续按绑定顺序是角色/道具。",
+      "promptHelperTitle": "💡 提示词助手",
+      "promptHelperHint": "点击下方标签，自动把 @角色名 插入到提示词光标位置。",
+      "promptHelperInsertTitle": "插入 @{label} 到提示词",
+      "promptHelperInserted": "已插入 {token}",
+      "promptHelperCopied": "未找到提示词输入框，已复制 {token} 到剪贴板"
     },
     "tasks": {
       "title": "生成任务列表",
