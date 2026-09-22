@@ -531,10 +531,16 @@
                   <div class="video-task-title">{{ t('episode.vid.listTitle') }}</div>
                   <div class="video-task-meta">{{ videoListFilter ? t('episode.vid.listMetaFiltered', { n: videoTaskRows.length, total: allVideoTaskRows.length }) : t('episode.vid.listMeta', { n: videoTaskRows.length }) }}</div>
                 </div>
-                <div class="video-task-metrics">
-                  <button type="button" class="video-task-metric is-pending" :class="{ on: videoListFilter === 'pending' }" @click="toggleVideoFilter('pending')">{{ t('episode.vid.metricPending', { n: pendingVideoIds.length }) }}</button>
-                  <button type="button" class="video-task-metric is-done" :class="{ on: videoListFilter === 'done' }" @click="toggleVideoFilter('done')">{{ t('episode.vid.metricDone', { n: videoTaskDoneCount }) }}</button>
-                  <button type="button" class="video-task-metric is-failed" :class="{ on: videoListFilter === 'failed' }" @click="toggleVideoFilter('failed')">{{ t('episode.vid.metricFailed', { n: videoTaskFailedCount }) }}</button>
+                <div class="video-task-head-actions">
+                  <button type="button" class="btn btn-sm video-task-add-btn" @click="addNewStoryboard" :disabled="addingStoryboard">
+                    <Plus :size="13" />
+                    {{ t('episode.vid.addShot') }}
+                  </button>
+                  <div class="video-task-metrics">
+                    <button type="button" class="video-task-metric is-pending" :class="{ on: videoListFilter === 'pending' }" @click="toggleVideoFilter('pending')">{{ t('episode.vid.metricPending', { n: pendingVideoIds.length }) }}</button>
+                    <button type="button" class="video-task-metric is-done" :class="{ on: videoListFilter === 'done' }" @click="toggleVideoFilter('done')">{{ t('episode.vid.metricDone', { n: videoTaskDoneCount }) }}</button>
+                    <button type="button" class="video-task-metric is-failed" :class="{ on: videoListFilter === 'failed' }" @click="toggleVideoFilter('failed')">{{ t('episode.vid.metricFailed', { n: videoTaskFailedCount }) }}</button>
+                  </div>
                 </div>
                 </div>
                 <div v-if="videoSelectMode" class="shot-quick-actions video-quick-actions">
@@ -3448,6 +3454,32 @@ async function insertRefToPrompt(label) {
   }
 }
 
+// 新增分镜
+const addingStoryboard = ref(false)
+async function addNewStoryboard() {
+  if (!epId.value || addingStoryboard.value) return
+  addingStoryboard.value = true
+  try {
+    const nextNumber = sbs.value.length + 1
+    const res = await storyboardAPI.create({
+      episode_id: epId.value,
+      storyboard_number: nextNumber,
+      title: `镜头 ${nextNumber}`,
+      description: '',
+      duration: 10,
+    })
+    await refresh()
+    // 选中新创建的分镜
+    const newSb = sbs.value.find(sb => sb.id === res?.id)
+    if (newSb) selectedSb.value = newSb
+    toast.success(t('episode.vid.shotAdded'))
+  } catch (e) {
+    toastError(e, { fallback: 'episode.vid.shotAddFailed' })
+  } finally {
+    addingStoryboard.value = false
+  }
+}
+
 // 故事板（分镜）删除：先弹确认，确认后调 API + 刷新列表
 const storyboardDeleteId = ref(0)
 const storyboardDeleteNumber = ref(0)
@@ -5127,8 +5159,19 @@ onMounted(() => setTimeout(() => autoTour('episode', EPISODE_TOUR, t), 900))
   line-height: 1.35;
   color: var(--text-3);
 }
-.video-task-metrics {
+.video-task-head-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.video-task-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.video-task-metrics {
   display: flex;
   align-items: center;
   justify-content: flex-end;
