@@ -172,12 +172,14 @@ export class ComfyUIVideoAdapter implements VideoProviderAdapter {
     if (record.duration != null && record.duration !== 0) {
       if (!('duration' in body)) body.duration = Number(record.duration)
     }
-    // AutoDL 工作流尺寸字段完全靠用户在 extraParams 里指定（不同工作流命名差异大）：
-    //   minimax_h3_zm_u24 用 resolution='768p竖'（枚举值）
-    //   volcengine 等用 aspect_ratio='16:9'
-    // 不依赖 record.aspectRatio / record.size —— 这些字段是给火山/海螺/阿里云用的，
-    // 不该跨 provider 通用（容易触发"未定义参数"）。
-    // 如果用户没指定，让 AutoDL 用工作流自己默认值（一般都有合理默认）。
+    // AutoDL ComfyUI 工作流 resolution 枚举（480p横 / 480p竖 / 768p横 / 768p竖 / 480p(1:1) / 768p(1:1)）：
+    //   由项目 aspectRatio（16:9 / 9:16 / 1:1 / adaptive）+ 剧集 resolution（480p / 720p / 1080p）组合得到。
+    //   规则：480p 维持 480p 档；720p/1080p 收敛到 768p 档；adaptive 不下发，用工作流默认值。
+    //   用户若在 extraParams 里显式填了 resolution，则以用户值为准（此处不覆盖）。
+    if (!('resolution' in body)) {
+      const r = this.mapComfyResolution(record.aspectRatio, record.resolution)
+      if (r) body.resolution = r
+    }
     if (record.seed != null && record.seed !== 0) {
       if (!('seed' in body)) body.seed = Number(record.seed)
     }
@@ -200,6 +202,25 @@ export class ComfyUIVideoAdapter implements VideoProviderAdapter {
   private hasAnyTextField(body: Record<string, any>): boolean {
     const textKeys = ['text', 'positive_prompt', 'prompt', 'description', 'text_prompt']
     return textKeys.some(k => k in body)
+  }
+
+  /**
+   * 把项目 aspectRatio（16:9 / 9:16 / 1:1 / adaptive）与剧集 resolution（480p / 720p / 1080p）
+   * 组合成 AutoDL ComfyUI 工作流要求的 resolution 枚举值：
+   *   480p横 / 480p竖 / 768p横 / 768p竖 / 480p(1:1) / 768p(1:1)
+   * 规则：480p 维持 480p 档；720p/1080p 收敛到 768p 档；adaptive 或缺省不下发（用工作流默认）。
+   */
+  private mapComfyResolution(aspectRatio?: string | null, resolution?: string | null): string | undefined {
+    const ratio = String(aspectRatio || '').trim().toLowerCase()
+    if (!ratio || ratio === 'adaptive') return undefined
+    const is480 = String(resolution || '').trim().toLowerCase() === '480p'
+    const tier = is480 ? '480p' : '768p'
+    switch (ratio) {
+      case '16:9': return `${tier}横`
+      case '9:16': return `${tier}竖`
+      case '1:1': return `${tier}(1:1)`
+      default: return undefined
+    }
   }
 
   /** 解析 JSON 字符串为 URL 数组 */

@@ -850,12 +850,11 @@
                         type="button"
                         class="video-bound-ref"
                         :disabled="!asset.ready"
-                        :title="`${asset.name} · ${asset.typeLabel} · ComfyUI: ref_image_${asset.comfyIndex}`"
+                        :title="`${asset.name} · ${asset.typeLabel}`"
                         @click="asset.ready && openImageViewer(assetImageSrc({ imageUrl: asset.imageUrl }), `${asset.name} ${asset.typeLabel}`)"
                       >
                         <img v-if="asset.ready" :src="thumbOf(assetImageSrc({ imageUrl: asset.imageUrl }))" :alt="asset.name" loading="lazy" @error="thumbFallback($event, assetImageSrc({ imageUrl: asset.imageUrl }))" />
                         <span v-else class="video-bound-ref-empty">{{ asset.kind === 'scene' ? t('episode.ref.shortScene') : asset.kind === 'prop' ? t('episode.ref.shortProp') : t('episode.ref.shortChar') }}</span>
-                        <span class="video-bound-ref-index">ref_image_{{ asset.comfyIndex }}</span>
                         <small>{{ asset.name }}</small>
                       </button>
                     </div>
@@ -885,24 +884,6 @@
                   <div class="video-inspector-effective">
                     {{ t('episode.inspector.effective', { model: effectiveVideoModelLabel || t('episode.vid.defaultModel'), res: episodeResolutionShort, dur: effectiveVideoDuration }) }}
                   </div>
-
-                  <!-- 参考图顺序预览：让用户清楚知道 ref_image_0/1/2 对应哪个场景/角色/道具 -->
-                  <section class="video-inspector-section video-refs-preview" v-if="videoConfigProviderIsComfyUI">
-                    <div class="video-section-title">{{ t('episode.inspector.refsTitle') }}</div>
-                    <div v-if="!getShotReferenceImages(selectedSb).length" class="video-refs-empty">
-                      {{ t('episode.inspector.refsEmpty') }}
-                    </div>
-                    <div v-else class="video-refs-list">
-                      <div v-for="(ref, idx) in getShotReferenceImages(selectedSb)" :key="idx" class="video-ref-row">
-                        <code class="video-ref-key">ref_image_{{ idx }}</code>
-                        <span class="video-ref-arrow">→</span>
-                        <span class="video-ref-label">{{ refLabelForIndex(selectedSb, idx) }}</span>
-                      </div>
-                    </div>
-                    <div class="video-refs-hint">
-                      {{ t('episode.inspector.refsHint') }}
-                    </div>
-                  </section>
 
                   <!-- 提示词助手：把 @场景/@角色名 一键插入到当前激活的 videoPrompt 输入框 -->
                   <section class="video-inspector-section video-prompt-helper" v-if="videoConfigProviderIsComfyUI && getShotReferenceImages(selectedSb).length">
