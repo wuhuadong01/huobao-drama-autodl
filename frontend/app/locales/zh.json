@@ -766,8 +766,7 @@
       "confirmNote": "将按以上配置逐镜头发起生成；失败的任务之后可点「重试失败」一键重跑。",
       "confirmStart": "开始生成 ({n})",
       "selectMissing": "选未生成",
-      "aspectRatio": "画面比例",
-      "refsAutoMapped": "已按 prompt 顺序排列参考图：{to}"
+      "aspectRatio": "画面比例"
     },
     "inspector": {
       "videoPromptPlaceholder": "用 {'@'}角色名 / {'@'}场景名 引用参考素材，生成时自动映射为参考图片；再按时间段描述画面运动与镜头…",

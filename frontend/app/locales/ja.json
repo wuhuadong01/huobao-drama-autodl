@@ -766,8 +766,7 @@
       "confirmNote": "上記の設定でショットごとに生成を開始します。失敗したタスクは後で「失敗を再試行」からまとめて再実行できます。",
       "confirmStart": "生成開始 ({n})",
       "selectMissing": "未生成を選択",
-      "aspectRatio": "アスペクト比",
-      "refsAutoMapped": "プロンプト順に参照画像を整列しました：{to}"
+      "aspectRatio": "アスペクト比"
     },
     "inspector": {
       "videoPromptPlaceholder": "{'@'}キャラクター名 / {'@'}シーン名 で参照素材を指定（生成時に参照画像へ自動マッピング）。時間帯ごとに画面の動きとカメラを記述…",

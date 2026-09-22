@@ -3452,77 +3452,13 @@ async function confirmDeleteStoryboard() {
   }
 }
 
-// 从 prompt 文本里提取所有 @角色名（按出现顺序、去重）
-function extractPromptRefs(text) {
-  if (!text) return []
-  const seen = new Set()
-  const out = []
-  const re = /@([^\s\u3000\u3001\u3002@]+)/g
-  let m
-  while ((m = re.exec(text)) !== null) {
-    const name = m[1].trim()
-    if (!seen.has(name)) { seen.add(name); out.push(name) }
-  }
-  return out
-}
-
-// 按 prompt 里 @角色名 顺序重排 referenceImages：
-// 场景图固定放第 0 位（ref_image_0），后续按 prompt 出现的角色名顺序排，
-// 没在 prompt 里出现的角色+道具按原顺序排到末尾。
-// 这样用户写 "@船长 @冯帆" 时，船长必然是 ref_image_1，冯帆是 ref_image_2。
-function reorderRefsByPrompt(refs, sb, prompt) {
-  if (!refs.length) return refs
-  const promptNames = extractPromptRefs(prompt)
-  if (!promptNames.length) return refs
-
-  // 收集绑定（场景 + 角色 + 道具）的 url + 名称
-  const scene = getStoryboardScene(sb)
-  const items = []
-  const sceneUrl = scene?.image_url || scene?.imageUrl
-  if (sceneUrl) items.push({ url: sceneUrl, name: '场景', kind: 'scene', alwaysFirst: true })
-
-  for (const c of getStoryboardCharacters(sb)) {
-    const u = c?.image_url || c?.imageUrl
-    if (u) items.push({ url: u, name: c.name || '?', kind: 'char' })
-  }
-  for (const p of getStoryboardProps(sb)) {
-    const u = p?.image_url || p?.imageUrl
-    if (u) items.push({ url: u, name: p.name || '?', kind: 'prop' })
-  }
-
-  // 按 prompt 顺序排
-  const ordered = []
-  const seenUrls = new Set()
-  // 第一轮：场景图固定放最前
-  for (const it of items) {
-    if (it.kind === 'scene') { ordered.push(it); seenUrls.add(it.url) }
-  }
-  // 第二轮：按 prompt 里的 @角色名 顺序
-  for (const name of promptNames) {
-    for (const it of items) {
-      if (seenUrls.has(it.url)) continue
-      // 名字匹配（包含，因为用户可能写 "@厂长" vs "船长"）—— 用全等以严格匹配
-      if (it.name === name) { ordered.push(it); seenUrls.add(it.url); break }
-    }
-  }
-  // 第三轮：剩下的按原顺序排到末尾
-  for (const it of items) {
-    if (!seenUrls.has(it.url)) { ordered.push(it); seenUrls.add(it.url) }
-  }
-  return ordered.map(it => it.url)
-}
-
 async function genVid(sb, opts = {}) {
-  const prompt = resolveVideoPromptRefs(sb)
-  // 按 prompt 里 @角色名 出现顺序重排参考图，让 @船长 → ref_image_1, @冯帆 → ref_image_2
-  const referenceImages = videoConfigProviderIsComfyUI.value
-    ? reorderRefsByPrompt(getShotReferenceImages(sb), sb, prompt)
-    : getShotReferenceImages(sb)
+  const referenceImages = getShotReferenceImages(sb)
   // 参考素材完全来自分镜绑定的角色/场景/道具图片
   const params = {
     storyboard_id: sb.id,
     drama_id: dramaId,
-    prompt,
+    prompt: resolveVideoPromptRefs(sb),
     duration: Number(sb.duration || 10),
     aspect_ratio: dramaAspectRatio.value,
     generate_audio: true,
@@ -3531,12 +3467,6 @@ async function genVid(sb, opts = {}) {
     reference_image_urls: referenceImages,
     reference_audio_urls: videoExtraAudioUrl.value ? [videoExtraAudioUrl.value] : [],
     extraParams: videoExtraParams.value || undefined,
-  }
-  if (videoConfigProviderIsComfyUI.value && prompt) {
-    const promptRefs = extractPromptRefs(prompt)
-    if (promptRefs.length) {
-      toast.info(t('episode.vid.refsAutoMapped', { to: promptRefs.join(' / ') }), { duration: 4000 })
-    }
   }
   if (!params.prompt && !referenceImages.length) {
     toast.error(t('episode.vid.needRefOrPrompt'))
