@@ -691,6 +691,38 @@
                       <div v-if="!refBindableAssets.length" class="storyboard-ref-empty">{{ t('episode.ref.empty') }}</div>
                     </div>
                   </section>
+
+                  <section class="video-inspector-section">
+                    <div class="video-inspector-prompt-head">
+                      <span class="video-inspector-label">参考音频</span>
+                      <span class="dim">（comfyUI 工作流映射为 ref_audio_0，选填）</span>
+                    </div>
+                    <div class="video-extra-audio-input-row">
+                      <input
+                        v-model="videoExtraAudioUrl"
+                        type="text"
+                        class="input video-extra-audio-url"
+                        placeholder="音频 URL，或点击右侧上传本地文件"
+                      />
+                      <label class="btn btn-sm btn-ghost">
+                        <Loader2 v-if="videoExtraAudioUploading" :size="11" class="animate-spin" />
+                        <span v-else>上传</span>
+                        <input
+                          type="file"
+                          accept="audio/*"
+                          style="display:none"
+                          :disabled="videoExtraAudioUploading"
+                          @change="onUploadAudio($event)"
+                        />
+                      </label>
+                      <button
+                        v-if="videoExtraAudioUrl"
+                        type="button"
+                        class="btn btn-sm btn-ghost"
+                        @click="videoExtraAudioUrl = ''"
+                      >清空</button>
+                    </div>
+                  </section>
                 </div>
 
                   <section class="video-inspector-section">
@@ -756,35 +788,7 @@
                 />
                 <div class="video-extra-params-hint">
                   仅对 comfyUI 工作流生效。字段名必须严格匹配 AutoDL 工作流文档，否则会报"未定义参数"。
-                </div>
-
-                <div class="video-extra-audio-row">
-                  <label class="video-extra-audio-label">参考音频（部分 comfyUI 工作流必填 ref_audio_0）：</label>
-                  <div class="video-extra-audio-input-row">
-                    <input
-                      v-model="videoExtraAudioUrl"
-                      type="text"
-                      class="input video-extra-audio-url"
-                      placeholder="https://...mp3 或上传本地文件"
-                    />
-                    <label class="btn btn-sm btn-ghost">
-                      <Loader2 v-if="videoExtraAudioUploading" :size="11" class="animate-spin" />
-                      <span v-else>上传</span>
-                      <input
-                        type="file"
-                        accept="audio/*"
-                        style="display:none"
-                        :disabled="videoExtraAudioUploading"
-                        @change="onUploadAudio($event)"
-                      />
-                    </label>
-                    <button
-                      v-if="videoExtraAudioUrl"
-                      type="button"
-                      class="btn btn-sm btn-ghost"
-                      @click="videoExtraAudioUrl = ''"
-                    >清空</button>
-                  </div>
+                  参考音频请在上方「参考音频」区域上传（映射为 ref_audio_0）。
                 </div>
               </details>
               <div class="video-player-stage">
