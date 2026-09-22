@@ -631,7 +631,11 @@
                     <div class="storyboard-ref-list is-embedded">
                       <template v-for="g in REF_KINDS" :key="g.kind">
                         <div v-if="refBindableAssets.filter(a => a.kind === g.kind).length" class="storyboard-ref-group">
-                          <div class="storyboard-ref-group-label">{{ g.label }}</div>
+                          <div class="storyboard-ref-group-label">
+                            {{ g.label }}
+                            <span class="storyboard-ref-comfy-hint" v-if="g.kind === 'scene'">{{ t('episode.ref.comfyHintScene') }}</span>
+                            <span class="storyboard-ref-comfy-hint" v-else>{{ t('episode.ref.comfyHintOther') }}</span>
+                          </div>
                           <div
                             v-for="asset in refBindableAssets.filter(a => a.kind === g.kind)"
                             :key="asset.key"
@@ -651,6 +655,9 @@
                             <div class="storyboard-ref-main">
                               <span class="storyboard-ref-name">{{ asset.name }}</span>
                               <span class="storyboard-ref-meta">{{ asset.typeLabel }} · {{ asset.meta }}</span>
+                              <span class="storyboard-ref-comfy-param" v-if="asset.bound">
+                                {{ getComfyParamName(asset) }}
+                              </span>
                               <span :class="['storyboard-ref-state', asset.bound && asset.ready ? 'is-ready' : '']">
                                 {{ asset.bound ? (asset.ready ? t('episode.ref.usable') : t('episode.ref.notReady')) : t('episode.ref.unbound') }}
                               </span>
@@ -821,11 +828,12 @@
                         type="button"
                         class="video-bound-ref"
                         :disabled="!asset.ready"
-                        :title="`${asset.name} · ${asset.typeLabel}`"
+                        :title="`${asset.name} · ${asset.typeLabel} · ComfyUI: ref_image_${asset.comfyIndex}`"
                         @click="asset.ready && openImageViewer(assetImageSrc({ imageUrl: asset.imageUrl }), `${asset.name} ${asset.typeLabel}`)"
                       >
                         <img v-if="asset.ready" :src="thumbOf(assetImageSrc({ imageUrl: asset.imageUrl }))" :alt="asset.name" loading="lazy" @error="thumbFallback($event, assetImageSrc({ imageUrl: asset.imageUrl }))" />
                         <span v-else class="video-bound-ref-empty">{{ asset.kind === 'scene' ? t('episode.ref.shortScene') : asset.kind === 'prop' ? t('episode.ref.shortProp') : t('episode.ref.shortChar') }}</span>
+                        <span class="video-bound-ref-index">ref_image_{{ asset.comfyIndex }}</span>
                         <small>{{ asset.name }}</small>
                       </button>
                     </div>
@@ -3217,8 +3225,11 @@ const refBindableAssets = computed(() => {
   return sb ? shotBindableAssets(sb) : []
 })
 
-// 右栏「绑定参考图」：当前分镜已绑定素材（生成时作为参考图提交），按分组顺序平铺展示
-const boundRefAssets = computed(() => refBindableAssets.value.filter(a => a.bound))
+// 右栏「绑定参考图」：当前分镜已绑定素材（生成时作为参考图提交），按分组顺序平铺展示，并带上 ComfyUI 索引
+const boundRefAssets = computed(() => {
+  const assets = refBindableAssets.value.filter(a => a.bound)
+  return assets.map((asset, index) => ({ ...asset, comfyIndex: index }))
+})
 
 // 参考面板分组顺序（kind code 驱动，label 渲染时求值）
 const REF_KINDS = computed(() => ([
@@ -3226,6 +3237,14 @@ const REF_KINDS = computed(() => ([
   { kind: 'scene', label: t('common.scene') },
   { kind: 'prop', label: t('common.prop') },
 ]))
+
+// 计算 ComfyUI 参数名：场景固定是 ref_image_0，角色/道具按绑定顺序递增
+function getComfyParamName(asset) {
+  if (!asset.bound) return ''
+  const boundAssets = boundRefAssets.value
+  const index = boundAssets.findIndex(a => a.key === asset.key)
+  return index >= 0 ? `ref_image_${index}` : ''
+}
 
 // 右侧面板切换绑定：场景单选（切换/解绑），角色/道具多选（kind code 判断，不依赖显示文案）
 function toggleShotBind(sb, asset) {
@@ -4201,6 +4220,33 @@ onMounted(() => setTimeout(() => autoTour('episode', EPISODE_TOUR, t), 900))
 }
 .storyboard-ref-goto:hover {
   background: var(--accent-bg);
+}
+.storyboard-ref-group-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+.storyboard-ref-comfy-hint {
+  font-size: 10px;
+  color: var(--text-3);
+  font-weight: 400;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  opacity: 0.8;
+}
+.storyboard-ref-comfy-param {
+  font-size: 9px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #fff;
+  background: rgba(99, 102, 241, 0.9);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 600;
+  display: inline-block;
+  margin-top: 2px;
 }
 .storyboard-ref-item {
   display: grid;
@@ -5511,6 +5557,20 @@ button.video-task-metric.on { box-shadow: 0 0 0 2px var(--accent); }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.video-bound-ref-index {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  padding: 2px 5px;
+  background: rgba(99, 102, 241, 0.9);
+  color: #fff;
+  font-size: 9px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  border-radius: 4px;
+  font-weight: 600;
+  z-index: 2;
+  pointer-events: none;
 }
 .video-bound-ref-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; }
 .video-bound-refs-empty { padding: 10px; border: 1px dashed var(--surface-outline); border-radius: var(--radius); color: var(--text-3); font-size: 11px; line-height: 1.5; }

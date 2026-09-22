@@ -709,7 +709,9 @@
       "notReady": "Not generated",
       "unbound": "Unbound",
       "gotoGenerate": "Go generate →",
-      "empty": "No scenes, characters or props in this episode yet. Extract assets in “Assets” first, then bind them here."
+      "empty": "No scenes, characters or props in this episode yet. Extract assets in "Assets" first, then bind them here.",
+      "comfyHintScene": "→ ref_image_0 (scene)",
+      "comfyHintOther": "→ ref_image_1..N (by bind order)"
     },
     "vid": {
       "shotCount": "{n} shots",

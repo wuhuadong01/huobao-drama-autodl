@@ -709,7 +709,9 @@
       "notReady": "未生成",
       "unbound": "未绑定",
       "gotoGenerate": "去生成 →",
-      "empty": "当前集还没有场景、角色或道具，先到「资产」提取素材后即可绑定。"
+      "empty": "当前集还没有场景、角色或道具，先到「资产」提取素材后即可绑定。",
+      "comfyHintScene": "→ ref_image_0（场景图）",
+      "comfyHintOther": "→ ref_image_1..N（按绑定顺序）"
     },
     "vid": {
       "shotCount": "{n} 个镜头",
