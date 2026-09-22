@@ -477,8 +477,10 @@ async function handleVideoComplete(record: SysTaskRecord, videoUrl: string, dura
   logTaskSuccess('VideoTask', 'downloaded', { id: record.id, localPath, storyboardId: record.storyboardId, duration })
 
   if (record.storyboardId) {
+    // 不用 API 返回的 duration 覆盖分镜时长：那是任务生成耗时，不是视频内容时长。
+    // storyboards.duration 保持用户在分镜上填的值不变，只更新视频地址。
     await db.update(schema.storyboards)
-      .set({ videoUrl: localPath, duration: duration || undefined, updatedAt: now() })
+      .set({ videoUrl: localPath, updatedAt: now() })
       .where(eq(schema.storyboards.id, record.storyboardId))
   }
 }
