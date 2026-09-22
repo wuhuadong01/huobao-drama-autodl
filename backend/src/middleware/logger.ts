@@ -32,7 +32,10 @@ export const requestLogger: MiddlewareHandler = async (c, next) => {
   // 打印请求
   const time = formatTime()
   let bodyInfo = ''
-  if (['POST', 'PUT', 'PATCH'].includes(method)) {
+  const contentType = c.req.header('content-type') || ''
+  // multipart/form-data 不能读取 body（会消耗底层流，导致后续 parseBody 拿不到文件），只打印 content-type
+  const isMultipart = contentType.startsWith('multipart/')
+  if (['POST', 'PUT', 'PATCH'].includes(method) && !isMultipart) {
     try {
       const clone = c.req.raw.clone()
       const text = await clone.text()
@@ -41,6 +44,8 @@ export const requestLogger: MiddlewareHandler = async (c, next) => {
         bodyInfo = `\n  ${colors.dim}body: ${truncated}${colors.reset}`
       }
     } catch {}
+  } else if (isMultipart) {
+    bodyInfo = `\n  ${colors.dim}content-type: ${contentType.split(';')[0]}${colors.reset}`
   }
 
   console.log(`${colors.dim}${time}${colors.reset} ${colors.cyan}${method}${colors.reset} ${path}${bodyInfo}`)
