@@ -261,6 +261,36 @@ export const sqliteSchemaStatements = [
     deleted_at TEXT
   )`,
 
+  `CREATE TABLE IF NOT EXISTS audios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    drama_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT,
+    description TEXT,
+    final_prompt TEXT,
+    audio_url TEXT,
+    local_path TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS episode_audios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    episode_id INTEGER NOT NULL,
+    audio_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_episode_audios_episode_id ON episode_audios (episode_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_episode_audios_audio_id ON episode_audios (audio_id)`,
+
+  `CREATE TABLE IF NOT EXISTS storyboard_audios (
+    storyboard_id INTEGER NOT NULL,
+    audio_id INTEGER NOT NULL,
+    PRIMARY KEY (storyboard_id, audio_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_storyboard_audios_audio_id ON storyboard_audios (audio_id)`,
+
   `CREATE TABLE IF NOT EXISTS assets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     drama_id INTEGER,

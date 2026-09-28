@@ -50,6 +50,7 @@ export const episodeAPI = {
   characters: (id: number) => api.get(`/episodes/${id}/characters`),
   scenes: (id: number) => api.get(`/episodes/${id}/scenes`),
   props: (id: number) => api.get(`/episodes/${id}/props`),
+  audios: (id: number) => api.get(`/episodes/${id}/audios`),
   storyboards: (id: number) => api.get(`/episodes/${id}/storyboards`),
   pipelineStatus: (id: number) => api.get(`/episodes/${id}/pipeline-status`),
   extract: (id: number, target: string, model?: string, configId?: number) => api.post(`/episodes/${id}/extract`, { target, model: model || undefined, config_id: configId || undefined }),
@@ -88,6 +89,12 @@ export const propAPI = {
   del: (id: number) => api.del(`/props/${id}`),
   generatePrompt: (id: number, episodeId: number, force = false, textModel?: string, textConfigId?: number) => api.post(`/props/${id}/generate-prompt`, { episode_id: episodeId, force, text_model: textModel || undefined, text_config_id: textConfigId || undefined }),
   generateImage: (id: number, episodeId: number, model?: string, configId?: number, textModel?: string, textConfigId?: number) => api.post(`/props/${id}/generate-image`, { episode_id: episodeId, model: model || undefined, config_id: configId || undefined, text_model: textModel || undefined, text_config_id: textConfigId || undefined }),
+}
+
+export const audioAPI = {
+  create: (data: any) => api.post('/audios', data),
+  update: (id: number, data: any) => api.put(`/audios/${id}`, data),
+  del: (id: number) => api.del(`/audios/${id}`),
 }
 
 // 统一生成任务（图片/视频）：POST 带 type 字段，列表按 type 过滤

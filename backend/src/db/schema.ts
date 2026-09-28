@@ -257,6 +257,35 @@ export const props = sqliteTable('props', {
   deletedAt: text('deleted_at'),
 })
 
+export const audios = sqliteTable('audios', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  dramaId: integer('drama_id').notNull(),
+  name: text('name').notNull(),
+  type: text('type'),
+  description: text('description'),
+  finalPrompt: text('final_prompt'),
+  audioUrl: text('audio_url'),
+  localPath: text('local_path'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+})
+
+// Episode-Audio many-to-many
+export const episodeAudios = sqliteTable('episode_audios', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  episodeId: integer('episode_id').notNull(),
+  audioId: integer('audio_id').notNull(),
+  createdAt: text('created_at').notNull(),
+})
+
+export const storyboardAudios = sqliteTable('storyboard_audios', {
+  storyboardId: integer('storyboard_id').notNull(),
+  audioId: integer('audio_id').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.storyboardId, table.audioId] }),
+])
+
 export const assets = sqliteTable('assets', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   dramaId: integer('drama_id'),

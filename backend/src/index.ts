@@ -20,6 +20,7 @@ import agent from './routes/agent.js'
 import merge from './routes/merge.js'
 import skills from './routes/skills.js'
 import props from './routes/props.js'
+import audios from './routes/audios.js'
 import settings from './routes/settings.js'
 import storage from './routes/storage.js'
 import serverUpdate from './routes/serverUpdate.js'
@@ -66,6 +67,7 @@ api.route('/agent', agent)
 api.route('/merge', merge)
 api.route('/skills', skills)
 api.route('/props', props)
+api.route('/audios', audios)
 api.route('/storage', storage)
 api.route('/settings', settings)
 api.route('/server-update', serverUpdate)

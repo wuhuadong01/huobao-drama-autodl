@@ -125,6 +125,18 @@ app.get('/:id/props', async (c) => {
   return success(c, toSnakeCaseArray(result))
 })
 
+// GET /episodes/:id/audios — audios linked to this episode
+app.get('/:id/audios', async (c) => {
+  const episodeId = Number(c.req.param('id'))
+  const links = await db.select().from(schema.episodeAudios)
+    .where(eq(schema.episodeAudios.episodeId, episodeId))
+  const audioIds = links.map(l => l.audioId)
+  if (!audioIds.length) return success(c, [])
+  const allAudios = await db.select().from(schema.audios)
+  const result = allAudios.filter(a => audioIds.includes(a.id) && !a.deletedAt)
+  return success(c, toSnakeCaseArray(result))
+})
+
 // POST /episodes/:id/extract — 异步提取资产（target: characters | scenes | props），立即返回，前端轮询状态
 app.post('/:id/extract', async (c) => {
   const id = Number(c.req.param('id'))
