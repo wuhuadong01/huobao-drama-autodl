@@ -85,8 +85,12 @@ const DROPDOWN_WIDTH = 240
 const DROPDOWN_MAX_HEIGHT = 220
 
 // 下拉 Teleport 到 body 后用 fixed 定位，任何外层滚动/窗口变化都会使其错位 → 直接关闭
+// 但弹窗自身的滚动（鼠标滚轮在弹窗上）不应关闭弹窗
 function closeOnOuterScroll(e) {
-  if (mention.value.open && e?.target !== taEl.value) closeMention()
+  if (!mention.value.open) return
+  if (e?.target === taEl.value) return
+  if (dropdownEl.value?.contains(e.target)) return
+  closeMention()
 }
 onMounted(() => {
   window.addEventListener('scroll', closeOnOuterScroll, true)
