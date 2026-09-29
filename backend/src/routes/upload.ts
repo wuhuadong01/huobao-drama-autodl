@@ -15,9 +15,11 @@ app.post('/image', async (c) => {
 
   const buffer = await file.arrayBuffer()
   const path = await saveUploadedFile(buffer, 'uploads', file.name)
-  // 同步生成列表页缩略图，上传图与生图走同一套展示链路（失败不影响上传结果）
-  await generateImageThumb(path)
-  return success(c, { url: `/${path}`, path })
+  // R2 启用时 path 已是图床公网 URL，无需补前导斜杠；本地路径才拼 /static 相对路径
+  const isRemote = /^https?:\/\//.test(path)
+  // 同步生成列表页缩略图，上传图与生图走同一套展示链路（失败不影响上传结果；远程 URL 无法本地生成，跳过）
+  if (!isRemote) await generateImageThumb(path)
+  return success(c, { url: isRemote ? path : `/${path}`, path })
 })
 
 const VIDEO_EXT = new Set(['.mp4', '.mov', '.webm', '.m4v'])
@@ -56,7 +58,9 @@ async function saveMediaUpload(
     return badRequest(c, `${label}文件大小不能超过 ${Math.round(maxBytes / 1024 / 1024)}MB`)
   }
   const path = await saveUploadedFile(buffer, 'uploads', file.name)
-  return success(c, { url: `/${path}`, path })
+  // R2 启用时 path 已是图床公网 URL；本地路径才补前导斜杠
+  const isRemote = /^https?:\/\//.test(path)
+  return success(c, { url: isRemote ? path : `/${path}`, path })
 }
 
 // POST /upload/video — 参考视频上传（Seedance 多模态参考用）

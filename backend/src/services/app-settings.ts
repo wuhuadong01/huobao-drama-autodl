@@ -69,3 +69,32 @@ export function setToursSeen(ids: unknown): string[] {
     .run()
   return clean
 }
+
+const IMAGE_HOST_ENABLED_KEY = 'image_host_enabled'
+
+/**
+ * 图床上传运行时开关（三态）：
+ * - 库中未设置 → 回退环境变量 R2_ENABLED（本地 .env 配置仍然有效，向后兼容）
+ * - 库中 '1' / '0' → 以运行时开关为准（设置页可随时切换，无需重启）
+ */
+export function getImageHostEnabled(): boolean {
+  const row = db.select().from(schema.appSettings)
+    .where(eq(schema.appSettings.key, IMAGE_HOST_ENABLED_KEY))
+    .get()
+  if (row?.value === '1') return true
+  if (row?.value === '0') return false
+  return process.env.R2_ENABLED === 'true'
+}
+
+/** 写入图床上传开关（upsert） */
+export function setImageHostEnabled(enabled: boolean): boolean {
+  const value = enabled ? '1' : '0'
+  db.insert(schema.appSettings)
+    .values({ key: IMAGE_HOST_ENABLED_KEY, value, updatedAt: now() })
+    .onConflictDoUpdate({
+      target: schema.appSettings.key,
+      set: { value, updatedAt: now() },
+    })
+    .run()
+  return enabled
+}

@@ -45,4 +45,23 @@ export default async function afterPack(context) {
   // 顺手清掉宿主机平台预编译残留（bindings 不会命中，但白占体积）
   fs.rmSync(path.join(path.dirname(path.dirname(path.dirname(target))), 'bin'), { recursive: true, force: true })
   console.log(`[after-pack] win32 better_sqlite3.node 已替换为 PE 二进制 (${(fs.statSync(target).size / 1024 / 1024).toFixed(1)}MB)`)
+
+  // sharp 同理：宿主机装的是 linux/darwin 的 @img/sharp-*，win 包必须换入官方
+  // win32-x64 预编译（含 libvips DLL）。缓存于 build/win-bin/sharp-win32-x64/。
+  const SHARP_STAGE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'build', 'win-bin', 'sharp-win32-x64')
+  if (!fs.existsSync(path.join(SHARP_STAGE, 'package.json'))) {
+    throw new Error(
+      `缺少 win32 sharp 预编译: ${SHARP_STAGE}\n` +
+      '下载 https://registry.npmjs.org/@img/sharp-win32-x64/-/sharp-win32-x64-0.34.5.tgz ' +
+      '解出 package/ 目录内容放入该路径',
+    )
+  }
+  const imgDir = path.join(context.appOutDir, 'resources', 'app.asar.unpacked', 'node_modules', '@img')
+  if (!fs.existsSync(imgDir)) throw new Error(`未找到待替换的 @img 目录: ${imgDir}`)
+  // 清掉宿主机平台的 sharp 预编译（@img/colour 是纯 JS，保留）
+  for (const entry of fs.readdirSync(imgDir)) {
+    if (entry.startsWith('sharp-')) fs.rmSync(path.join(imgDir, entry), { recursive: true, force: true })
+  }
+  fs.cpSync(SHARP_STAGE, path.join(imgDir, 'sharp-win32-x64'), { recursive: true })
+  console.log('[after-pack] win32 @img/sharp-win32-x64 已换入（含 libvips DLL），宿主机 sharp 预编译已清除')
 }

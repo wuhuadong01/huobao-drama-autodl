@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm'
 import { getActiveConfig, getConfigById } from './ai.js'
 import { now } from '../utils/response.js'
 import { downloadFile, fetchImageAsCompressedDataUrl, generateImageThumb, parseDataUrl, readImageAsCompressedDataUrl, saveBase64Image } from '../utils/storage.js'
+import { isR2Enabled, uploadToR2 } from '../utils/r2.js'
 import { extractVideoPoster } from '../utils/video-poster.js'
 import { getImageAdapter, getVideoAdapter } from './adapters/registry'
 import type { AIConfig } from './adapters/types'
@@ -607,11 +608,23 @@ async function resolvePublicImageUrl(value: string | null | undefined): Promise<
     const parsed = parseDataUrl(raw)
     if (!parsed) return null
     relativePath = await saveBase64Image(parsed.data, parsed.mimeType, 'images')
+    // R2 启用时 saveBase64Image 直接返回图床公网 URL
+    if (/^https?:\/\//.test(relativePath)) return relativePath
   } else if (raw.startsWith('static/') || raw.startsWith('/static/')) {
     relativePath = raw.startsWith('/') ? raw.slice(1) : raw
   } else {
     // 未知格式原样返回（adapter 自己再处理或报错）
     return raw
+  }
+
+  // 本地路径优先上传图床换公网 URL（生成时动态补传，存量图也覆盖），
+  // AutoDL 等上游 API 可直接拉取；图床不可用再回退 PUBLIC_BASE_URL 拼接
+  if (isR2Enabled()) {
+    try {
+      return await uploadToR2(relativePath)
+    } catch (err) {
+      logTaskWarn('VideoGen', 'r2-fallback', { path: relativePath, error: (err as Error).message })
+    }
   }
 
   const base = (process.env.PUBLIC_BASE_URL || '').trim().replace(/\/+$/, '')

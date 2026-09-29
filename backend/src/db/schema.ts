@@ -124,6 +124,7 @@ export const storyboards = sqliteTable('storyboards', {
   soundEffect: text('sound_effect'),
   description: text('description'),
   duration: integer('duration').default(0),
+  videoSeed: text('video_seed'),
   composedImage: text('composed_image'),
   firstFrameImage: text('first_frame_image'),
   lastFrameImage: text('last_frame_image'),

@@ -17,6 +17,25 @@ import * as path from 'path'
 import { registerMigrationIpc } from './migrate'
 import { registerUpdater, markQuitting } from './updater'
 
+// 打包版从 resources/.env 加载环境变量（开发模式后端自己用 dotenv 加载）
+function loadEnvFile(): Record<string, string> {
+  if (!app.isPackaged) return {}
+  const envPath = path.join(process.resourcesPath, '.env')
+  if (!fs.existsSync(envPath)) return {}
+  const env: Record<string, string> = {}
+  const content = fs.readFileSync(envPath, 'utf8')
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const eq = trimmed.indexOf('=')
+    if (eq < 0) continue
+    const key = trimmed.slice(0, eq).trim()
+    const val = trimmed.slice(eq + 1).trim()
+    if (key) env[key] = val
+  }
+  return env
+}
+
 // 主进程打 CJS 产物，__dirname 天然可用（import.meta.url 在 CJS 下为 undefined）
 declare const __dirname: string
 // desktop/dist → desktop 根
@@ -28,6 +47,30 @@ const BACKEND_BUNDLE = path.join(DESKTOP_ROOT, 'build', 'backend.mjs')
 /** workspace 模板版本：内置模板更新时递增，触发向用户目录补缺失文件 */
 const TEMPLATE_VERSION = '4'
 const STORAGE_CONFIG_FILE = 'storage-config.json'
+
+// ---- 启动日志落盘 ----
+// 打包版双击启动没有控制台，窗口都没出来就退出时无从排查；
+// 所有 console 输出 + 未捕获异常同步追加到 userData/main.log。
+function logLine(prefix: string, ...args: unknown[]): void {
+  try {
+    const line = `[${new Date().toISOString()}] ${prefix} ${args.map(a =>
+      typeof a === 'string' ? a : JSON.stringify(a),
+    ).join(' ')}\n`
+    fs.appendFileSync(path.join(app.getPath('userData'), 'main.log'), line)
+  } catch { /* 日志写不进去不能反过来挡启动 */ }
+}
+const origLog = console.log.bind(console)
+const origError = console.error.bind(console)
+console.log = (...args: unknown[]) => { origLog(...args); logLine('[info]', ...args) }
+console.error = (...args: unknown[]) => { origError(...args); logLine('[error]', ...args) }
+process.on('uncaughtException', err => {
+  origError('[uncaught]', err)
+  logLine('[uncaught]', err.stack || String(err))
+})
+process.on('unhandledRejection', reason => {
+  origError('[unhandledRejection]', reason)
+  logLine('[unhandledRejection]', reason instanceof Error ? (reason.stack || String(reason)) : String(reason))
+})
 
 let mainWindow: BrowserWindow | null = null
 let backend: UtilityProcess | null = null
@@ -68,7 +111,8 @@ function getFreePort(): Promise<number> {
   })
 }
 
-async function waitHealthy(port: number, timeoutMs = 15000): Promise<void> {
+async function waitHealthy(port: number, timeoutMs = 60000): Promise<void> {
+  console.log(`[main] waitHealthy :${port} (timeout ${timeoutMs}ms)`)
   const deadline = Date.now() + timeoutMs
   let lastErr: unknown = null
   while (Date.now() < deadline) {
@@ -164,6 +208,7 @@ function stopBackend(): Promise<void> {
 function startBackend(): void {
   const resources = resolveResourceDir()
   const env: NodeJS.ProcessEnv = {
+    ...loadEnvFile(),
     ...process.env,
     PORT: String(backendPort),
     HUOBAO_DESKTOP: '1',
@@ -185,10 +230,18 @@ function startBackend(): void {
     stdio: 'pipe',
   })
   console.log(`[main] backend forked from ${BACKEND_BUNDLE}`)
-  backend.stdout?.on('data', chunk => process.stdout.write(`[backend] ${chunk}`))
-  backend.stderr?.on('data', chunk => process.stderr.write(`[backend] ${chunk}`))
+  // 窗口版没有控制台，后端输出必须同步落盘，否则崩溃原因全丢
+  backend.stdout?.on('data', chunk => {
+    process.stdout.write(`[backend] ${chunk}`)
+    logLine('[backend]', String(chunk).trimEnd())
+  })
+  backend.stderr?.on('data', chunk => {
+    process.stderr.write(`[backend] ${chunk}`)
+    logLine('[backend:err]', String(chunk).trimEnd())
+  })
   backend.on('exit', code => {
     backend = null
+    console.error(`[main] backend exited code=${code}`)
     // 迁移/重启期间的退出是预期行为，由调用方接管
     if (!quitting && !backendRestarting) {
       dialog.showErrorBox('火宝短剧', `后台服务异常退出（code ${code}），应用即将关闭。请重新启动。`)
@@ -240,7 +293,9 @@ async function bootstrap() {
     console.log(`[main] port=${backendPort} userData=${userData}`)
 
     // 存储配置最先读（决定数据目录）；配置损坏时回退默认且不阻断启动
+    console.log('[main] step: loadStorageConfig')
     currentDataDir = loadStorageConfig()
+    console.log(`[main] step: dataDir=${currentDataDir}`)
     fs.mkdirSync(currentDataDir, { recursive: true })
 
     const resources = resolveResourceDir()
@@ -250,12 +305,16 @@ async function bootstrap() {
     currentWorkspaceDir = app.isPackaged
       ? path.join(userData, 'workspace')
       : templateDir
-    if (app.isPackaged) syncWorkspaceTemplate(templateDir, currentWorkspaceDir)
+    if (app.isPackaged) {
+      console.log('[main] step: syncWorkspaceTemplate')
+      syncWorkspaceTemplate(templateDir, currentWorkspaceDir)
+    }
 
     currentFrontendDist = app.isPackaged
       ? path.join(resources, 'frontend')
       : path.join(REPO_ROOT, 'frontend', '.output', 'public')
 
+    console.log('[main] step: startBackend')
     startBackend()
     await waitHealthy(backendPort)
     console.log('[main] backend healthy, opening window')

@@ -176,6 +176,8 @@ export const storageAPI = {
 export const settingsAPI = {
   contentLanguage: () => api.get<{ language: string }>('/settings/content-language'),
   setContentLanguage: (language: string) => api.put('/settings/content-language', { language }),
+  imageHostEnabled: () => api.get<{ enabled: boolean }>('/settings/image-host-enabled'),
+  setImageHostEnabled: (enabled: boolean) => api.put('/settings/image-host-enabled', { enabled }),
 }
 
 // 服务器/Docker 部署的版本检查与更新（桌面版走 useDesktopBridge，不用此 API）

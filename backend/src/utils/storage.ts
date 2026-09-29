@@ -6,6 +6,7 @@ import path from 'path'
 import sharp from 'sharp'
 import { v4 as uuid } from 'uuid'
 import { STORAGE_ROOT } from './paths.js'
+import { isR2Enabled, uploadToR2 } from './r2.js'
 
 /**
  * 下载远程文件到本地存储
@@ -25,7 +26,15 @@ export async function downloadFile(url: string, subDir: string): Promise<string>
   fs.writeFileSync(filePath, buffer)
 
   // 返回相对路径（供 API 返回给前端）
-  return `static/${subDir}/${filename}`
+  const localPath = `static/${subDir}/${filename}`
+  if (isR2Enabled()) {
+    try {
+      return await uploadToR2(localPath)
+    } catch (err) {
+      console.warn(`[storage] R2 上传失败，回退到本地路径:`, (err as Error).message)
+    }
+  }
+  return localPath
 }
 
 /**
@@ -40,7 +49,15 @@ export async function saveUploadedFile(data: ArrayBuffer, subDir: string, origin
   const filePath = path.join(dir, filename)
 
   fs.writeFileSync(filePath, Buffer.from(data))
-  return `static/${subDir}/${filename}`
+  const localPath = `static/${subDir}/${filename}`
+  if (isR2Enabled()) {
+    try {
+      return await uploadToR2(localPath)
+    } catch (err) {
+      console.warn(`[storage] R2 上传失败，回退到本地路径:`, (err as Error).message)
+    }
+  }
+  return localPath
 }
 
 function getExtFromUrl(url: string): string {
@@ -78,7 +95,15 @@ export async function saveBase64Image(base64Data: string, mimeType: string, subD
   const buffer = Buffer.from(base64Data, 'base64')
   fs.writeFileSync(filePath, buffer)
 
-  return `static/${subDir}/${filename}`
+  const localPath = `static/${subDir}/${filename}`
+  if (isR2Enabled()) {
+    try {
+      return await uploadToR2(localPath)
+    } catch (err) {
+      console.warn(`[storage] R2 上传失败，回退到本地路径:`, (err as Error).message)
+    }
+  }
+  return localPath
 }
 
 /** 由图片相对路径推导缩略图路径：static/images/x.png → static/images/x_thumb.webp */

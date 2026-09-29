@@ -45,6 +45,27 @@
             <p class="config-empty">{{ t('settings.general.languageHint') }}</p>
           </section>
 
+          <!-- 图床上传开关 -->
+          <section class="card svc-group">
+            <div class="svc-group-head">
+              <div class="svc-group-heading">
+                <span class="svc-group-title">图床上传</span>
+                <div class="svc-group-sub">生成视频时，自动把本地参考图上传到图床换取公网 URL，供 ComfyUI 等 AI 服务拉取</div>
+              </div>
+            </div>
+            <div class="config-row">
+              <div class="provider-badge" style="background:var(--accent-bg);color:var(--accent)"><CloudUpload :size="15" /></div>
+              <div class="config-main">
+                <div class="config-line"><span class="config-name">上传参考图到图床</span></div>
+                <div class="config-sub">关闭后回退用 PUBLIC_BASE_URL 拼接公网地址；切换立即生效，无需重启</div>
+              </div>
+              <label class="config-switch">
+                <input type="checkbox" class="sr-only" :checked="imageHostEnabled" @change="toggleImageHost" />
+                <span class="switch" :class="{ on: imageHostEnabled }"></span>
+              </label>
+            </div>
+          </section>
+
           <!-- 外观主题 -->
           <section class="card svc-group">
             <div class="svc-group-head">
@@ -672,7 +693,7 @@
 </template>
 
 <script setup>
-import { Plus, Pencil, Trash2, FileText, ChevronDown, Check, Loader2, Bot, Cpu, Sparkles, Palette, ExternalLink, Star, HardDrive, Database, RefreshCw, Download, Languages, SunMoon, X } from 'lucide-vue-next'
+import { Plus, Pencil, Trash2, FileText, ChevronDown, Check, Loader2, Bot, Cpu, Sparkles, Palette, ExternalLink, Star, HardDrive, Database, RefreshCw, Download, Languages, SunMoon, CloudUpload, X } from 'lucide-vue-next'
 import BaseSelect from '~/components/BaseSelect.vue'
 import { toast } from 'vue-sonner'
 import { toastError } from '~/composables/useToast'
@@ -1032,6 +1053,30 @@ async function setContentLanguage(lang) {
   await confirmUnifiedLanguage(lang)
 }
 onMounted(loadContentLanguage)
+
+// ─── 图床上传开关 ─────────────────────────────────────────────
+const imageHostEnabled = ref(false)
+const imageHostLoading = ref(false)
+async function loadImageHostEnabled() {
+  try {
+    imageHostEnabled.value = (await settingsAPI.imageHostEnabled())?.enabled || false
+  } catch { /* 保持默认 */ }
+}
+async function toggleImageHost() {
+  if (imageHostLoading.value) return
+  imageHostLoading.value = true
+  const next = !imageHostEnabled.value
+  try {
+    await settingsAPI.setImageHostEnabled(next)
+    imageHostEnabled.value = next
+    toast.success(next ? '已开启图床上传' : '已关闭图床上传')
+  } catch (e) {
+    toastError(e)
+  } finally {
+    imageHostLoading.value = false
+  }
+}
+onMounted(loadImageHostEnabled)
 
 // agent type 用下划线（script_rewriter），skill 目录按 Mastra 规范用连字符（script-rewriter）
 const skillDirOf = (type) => type.replace(/_/g, '-')

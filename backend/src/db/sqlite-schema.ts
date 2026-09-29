@@ -102,6 +102,7 @@ export const sqliteSchemaStatements = [
     sound_effect TEXT,
     description TEXT,
     duration INTEGER DEFAULT 0,
+    video_seed TEXT,
     composed_image TEXT,
     first_frame_image TEXT,
     last_frame_image TEXT,
@@ -429,6 +430,13 @@ export function initSqliteSchema(sqlite: Database.Database) {
   // 存量库升级：storyboards 新增 reference_audios 列（JSON 数组，存分镜参考音频）
   try {
     sqlite.exec(`ALTER TABLE storyboards ADD COLUMN reference_audios TEXT`)
+  } catch {
+    // 列已存在则忽略
+  }
+
+  // 存量库升级：storyboards 新增 video_seed 列（分镜固定随机种子，空/0 = 随机）
+  try {
+    sqlite.exec(`ALTER TABLE storyboards ADD COLUMN video_seed TEXT`)
   } catch {
     // 列已存在则忽略
   }

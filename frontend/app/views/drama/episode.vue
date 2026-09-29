@@ -945,6 +945,22 @@
                       </span>
                     </div>
                     <div class="video-param-hint">{{ t('episode.inspector.durationHint') }}</div>
+                    <div class="video-param-row">
+                      <span class="video-param-name">随机种子</span>
+                      <span class="video-param-control">
+                        <input
+                          :value="selectedSb.video_seed || ''"
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="随机"
+                          class="input video-duration-input"
+                          style="width:88px"
+                          @change="onVideoSeedChange"
+                        />
+                      </span>
+                    </div>
+                    <div class="video-param-hint">留空 = 每次随机；填固定数字可复现同参数结果</div>
                   </section>
                   <div class="video-inspector-effective">
                     {{ t('episode.inspector.effective', { model: effectiveVideoModelLabel || t('episode.vid.defaultModel'), res: episodeResolutionShort, dur: effectiveVideoDuration }) }}
@@ -1614,7 +1630,7 @@ import {
   Users, FileText, FolderKanban, Clapperboard, Download, Loader2,
   Plus, X, ListTodo, CircleHelp,
 } from 'lucide-vue-next'
-import { api, dramaAPI, episodeAPI, storyboardAPI, characterAPI, sceneAPI, propAPI, taskAPI, mergeAPI, aiConfigAPI, uploadAPI } from '~/composables/useApi'
+import { api, dramaAPI, episodeAPI, storyboardAPI, characterAPI, sceneAPI, propAPI, audioAPI, taskAPI, mergeAPI, aiConfigAPI, uploadAPI } from '~/composables/useApi'
 import { startTour, autoTour } from '~/composables/useTour'
 import { useAgent } from '~/composables/useAgent'
 import { toastError, mapError, MODERATION_RE } from '~/composables/useToast'
@@ -3443,6 +3459,21 @@ function onVideoDurationChange(e) {
   updateField(sb, 'duration', v)
 }
 
+// 分镜固定随机种子：空/0 = 随机（不下发），>0 = 固定值（可复现）
+function onVideoSeedChange(e) {
+  const sb = selectedSb.value
+  if (!sb) return
+  const raw = String(e.target.value ?? '').trim()
+  const n = Math.floor(Number(raw))
+  if (!raw || !Number.isFinite(n) || n <= 0) {
+    e.target.value = ''
+    updateField(sb, 'video_seed', '')
+    return
+  }
+  e.target.value = n
+  updateField(sb, 'video_seed', String(n))
+}
+
 function pickFile(accept, cb) {
   const input = document.createElement('input')
   input.type = 'file'
@@ -3682,6 +3713,7 @@ async function genVid(sb, opts = {}) {
     prompt: resolveVideoPromptRefs(sb),
     duration: Number(sb.duration || 10),
     aspect_ratio: dramaAspectRatio.value,
+    seed: Number(sb.video_seed) > 0 ? Number(sb.video_seed) : undefined,
     generate_audio: true,
     model: bareModelName(videoModel.value) || undefined,
     config_id: ownerConfigId(videoModelOptions.value, videoModel.value),
